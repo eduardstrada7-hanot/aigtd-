@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1c2740"/>
+      <stop offset="0.55" stop-color="#0d1422"/>
+      <stop offset="1" stop-color="#0b0e16"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.46" r="0.5">
+      <stop offset="0" stop-color="#ffc857" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffc857" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe39a"/>
+      <stop offset="0.5" stop-color="#ffc857"/>
+      <stop offset="1" stop-color="#c98c26"/>
+    </linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f6faff"/>
+      <stop offset="0.5" stop-color="#d2dcec"/>
+      <stop offset="1" stop-color="#8f9fb8"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a6479"/>
+      <stop offset="0.5" stop-color="#424a5c"/>
+      <stop offset="1" stop-color="#333a49"/>
+    </linearGradient>
+  </defs>
+
+  <!-- background -->
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- shield -->
+  <path d="M312 322 L712 322 L712 556 Q712 706 512 786 Q312 706 312 556 Z"
+        fill="url(#gold)" stroke="#5a3f12" stroke-width="14" stroke-linejoin="round"/>
+  <path d="M312 322 L712 322 L712 556 Q712 706 512 786 Q312 706 312 556 Z"
+        fill="none" stroke="#fff2cf" stroke-width="6" stroke-opacity="0.45" stroke-linejoin="round"
+        transform="translate(512 540) scale(0.9) translate(-512 -540)"/>
+
+  <!-- crossed swords (behind the tower) -->
+  <g stroke="#1b2230" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <g transform="translate(512 500) rotate(45)">
+      <polygon points="0,-196 13,-166 13,118 -13,118 -13,-166" fill="url(#steel)"/>
+      <rect x="-52" y="118" width="104" height="22" rx="8" fill="url(#gold)"/>
+      <rect x="-12" y="140" width="24" height="50" fill="#3a2c18"/>
+      <circle cx="0" cy="200" r="17" fill="url(#gold)"/>
+    </g>
+    <g transform="translate(512 500) rotate(-45)">
+      <polygon points="0,-196 13,-166 13,118 -13,118 -13,-166" fill="url(#steel)"/>
+      <rect x="-52" y="118" width="104" height="22" rx="8" fill="url(#gold)"/>
+      <rect x="-12" y="140" width="24" height="50" fill="#3a2c18"/>
+      <circle cx="0" cy="200" r="17" fill="url(#gold)"/>
+    </g>
+  </g>
+
+  <!-- tower / keep (centre emblem) -->
+  <g stroke="#1b212c" stroke-width="8" stroke-linejoin="round">
+    <!-- flag -->
+    <line x1="512" y1="452" x2="512" y2="410" stroke="#2a3140" stroke-width="6"/>
+    <path d="M512 412 L556 422 L512 434 Z" fill="#e2554f" stroke="none"/>
+    <!-- crenellations -->
+    <rect x="454" y="450" width="30" height="30" fill="url(#stone)"/>
+    <rect x="497" y="450" width="30" height="30" fill="url(#stone)"/>
+    <rect x="540" y="450" width="30" height="30" fill="url(#stone)"/>
+    <!-- body -->
+    <rect x="454" y="476" width="116" height="182" fill="url(#stone)"/>
+    <!-- battlement band + arrow slits -->
+    <rect x="454" y="500" width="116" height="12" fill="#2b323f" stroke="none"/>
+    <rect x="488" y="528" width="14" height="40" rx="6" fill="#222834" stroke="none"/>
+    <rect x="522" y="528" width="14" height="40" rx="6" fill="#222834" stroke="none"/>
+    <!-- arched door -->
+    <path d="M488 658 L488 614 Q512 588 536 614 L536 658 Z" fill="#1c2230" stroke="none"/>
+  </g>
+
+  <!-- small rose — signature -->
+  <g transform="translate(512 724)">
+    <path d="M-20 6 Q-38 -3 -29 -19 Q-13 -10 -20 6 Z" fill="#4f8a47" stroke="#2f5e2c" stroke-width="2"/>
+    <path d="M20 6 Q38 -3 29 -19 Q13 -10 20 6 Z" fill="#4f8a47" stroke="#2f5e2c" stroke-width="2"/>
+    <circle r="24" fill="#b9303a" stroke="#7c1d25" stroke-width="2"/>
+    <circle r="16" fill="#d23d47"/>
+    <path d="M0,-2 C9,-2 9,-13 -1,-13 C-13,-13 -13,5 3,5 C16,5 16,-15 -5,-15"
+          fill="none" stroke="#7c1d25" stroke-width="3.5" stroke-linecap="round"/>
+    <circle cx="-1" cy="-1" r="3" fill="#f0888f"/>
+  </g>
+</svg>

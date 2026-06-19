@@ -1,0 +1,20 @@
+{
+  "appId": "com.bastion.towerdefense",
+  "appName": "Bastion",
+  "webDir": "www",
+  "backgroundColor": "#0b0e16",
+  "android": {
+    "backgroundColor": "#0b0e16"
+  },
+  "ios": {
+    "backgroundColor": "#0b0e16",
+    "contentInset": "always"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 800,
+      "backgroundColor": "#0b0e16",
+      "showSpinner": false
+    }
+  }
+}

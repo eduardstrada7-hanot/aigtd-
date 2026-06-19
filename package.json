@@ -1,0 +1,28 @@
+{
+  "name": "bastion-tower-defense",
+  "version": "1.0.0",
+  "description": "Bastion — a self-contained HTML5 tower-defense game, packaged for web (PWA) and native iOS/Android via Capacitor.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "icons": "node tools/gen-icons.mjs",
+    "build": "node tools/build.mjs",
+    "serve": "npx --yes serve www -l 4321",
+    "sync": "npm run build && npx cap sync",
+    "add:ios": "npm run build && npx cap add ios && npx cap sync ios",
+    "add:android": "npm run build && npx cap add android && npx cap sync android",
+    "open:ios": "npx cap open ios",
+    "open:android": "npx cap open android",
+    "assets": "npx --yes @capacitor/assets generate --iconBackgroundColor '#0b0e16' --iconBackgroundColorDark '#0b0e16' --splashBackgroundColor '#0b0e16' --splashBackgroundColorDark '#0b0e16'"
+  },
+  "dependencies": {
+    "@capacitor/android": "^6.1.2",
+    "@capacitor/core": "^6.1.2",
+    "@capacitor/ios": "^6.1.2"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.1.2",
+    "sharp": "^0.33.5"
+  }
+}
