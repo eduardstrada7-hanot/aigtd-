@@ -205,6 +205,10 @@
   /* Demo ad */
   #adOverlay .modal{border-color:var(--gold);}
 
+  /* Stepped menu wizard (mobile) */
+  #wizNav{display:none; gap:10px; justify-content:center; margin:8px 0 2px;}
+  #wizNav button{padding:9px 26px;}
+
   /* Menu sub-buttons */
   #menuBtns{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:wrap;}
   #menuBtns button{padding:9px 18px; font-size:13px;}
@@ -247,17 +251,27 @@
   @media (max-width:640px){
     header.bar h1{font-size:18px;}
     #app{padding:7px;}
-    #side .panel{flex:1 1 100%;}
     #shop{grid-template-columns:repeat(3,1fr);}
     .tcard canvas{width:34px; height:34px;}
     #ctrl button{padding:10px 2px; font-size:14px;}
     .modal{padding:20px 16px;}
     .modal h2{font-size:23px;}
     .mapCard{width:100%; max-width:280px;}
-    #howto{font-size:11px;}
     #achGrid{grid-template-columns:1fr;}
     #researchGrid .rTier{gap:7px;}
     .rNode{width:46%;}
+    /* the long how-to block is replaced by the ❔ Tutorial button on phones */
+    #howto{display:none;}
+    /* in-game: one column, explicit stacking order */
+    #layout{display:flex; flex-direction:column; gap:10px;}
+    #canvasWrap, #side{display:contents;}
+    #side .panel{flex:0 0 auto; width:100%;}
+    canvas#game{order:2; flex:0 0 auto; width:100%;}
+    #hud{order:1;}        /* lives / gold / wave / kills */
+    #shopPanel{order:3;}  /* towers */
+    #waveBox{order:4;}    /* incoming wave */
+    #ctrl{order:5;}       /* pause · speed · mute · menu */
+    #info{order:6;}       /* field guide */
   }
 </style>
 </head>
@@ -278,7 +292,7 @@
         <div class="stat"><span class="ico">🌊</span><span><span class="lbl">Wave</span><span class="v" id="vWave">0/40</span></span></div>
         <div class="stat"><span class="ico">💀</span><span><span class="lbl">Kills</span><span class="v" id="vKills">0</span></span></div>
       </div>
-      <div class="panel"><div id="shop"></div></div>
+      <div class="panel" id="shopPanel"><div id="shop"></div></div>
       <div class="panel" id="info"></div>
       <div class="panel" id="waveBox">
         <div class="title">Incoming Wave</div>
@@ -304,11 +318,22 @@
   <div class="modal">
     <h2>⚔ BASTION</h2>
     <div class="tag">Hold the line. 40 waves stand between the horde and your keep.</div>
-    <div id="mapCards"></div>
-    <div class="selLabel">Difficulty</div>
-    <div id="diffRow"></div>
-    <div class="selLabel">Enemy faction</div>
-    <div id="skinRow"></div>
+    <div class="wizStep" data-step="0">
+      <div class="selLabel">Choose your map</div>
+      <div id="mapCards"></div>
+    </div>
+    <div class="wizStep" data-step="1">
+      <div class="selLabel">Difficulty</div>
+      <div id="diffRow"></div>
+    </div>
+    <div class="wizStep" data-step="2">
+      <div class="selLabel">Enemy faction</div>
+      <div id="skinRow"></div>
+    </div>
+    <div id="wizNav">
+      <button id="wizBack">◀ Back</button>
+      <button id="wizNext" class="gold">Next ▶</button>
+    </div>
     <button class="gold" id="btnStart" style="font-size:16px; padding:12px 44px; letter-spacing:2px; margin-top:20px;">⚔ &nbsp;DEFEND</button>
     <div id="menuBtns">
       <button id="btnDaily" class="gold">🎁 Daily</button>
@@ -2503,9 +2528,32 @@ function showMenu(){
   $('menuAch').textContent=ACH.count()+'/'+ACHIEVEMENTS.length;
   renderMapCards();
   refreshDailyBtn();
+  wizStep=0; renderWizard();
   // first-run tutorial (once)
   if(!localStorage.getItem('td_tutorial') && !tutAutoShown){ tutAutoShown=true; openTutorial(false); }
 }
+// ----- stepped menu wizard (phones): map -> difficulty -> faction -----
+let wizStep=0;
+function isMobileMenu(){ return window.matchMedia('(max-width:640px)').matches; }
+function renderWizard(){
+  const steps=document.querySelectorAll('#menu .wizStep');
+  const nav=$('wizNav'), start=$('btnStart');
+  if(isMobileMenu()){
+    wizStep=clamp(wizStep,0,steps.length-1);
+    steps.forEach(s=>{ s.style.display=(+s.dataset.step===wizStep)?'':'none'; });
+    nav.style.display='flex';
+    $('wizBack').style.visibility=wizStep>0?'visible':'hidden';
+    $('wizNext').style.display=wizStep<steps.length-1?'':'none';
+    start.style.display=wizStep===steps.length-1?'':'none';
+  } else {
+    steps.forEach(s=>{ s.style.display=''; });
+    nav.style.display='none';
+    start.style.display='';
+  }
+}
+$('wizNext').addEventListener('click',()=>{ SFX.ensure(); wizStep++; renderWizard(); });
+$('wizBack').addEventListener('click',()=>{ wizStep--; renderWizard(); });
+window.addEventListener('resize',()=>{ if(!$('menu').classList.contains('hidden')) renderWizard(); });
 const mapCardsEl=$('mapCards');
 function drawMiniMap(mc,m){
   const sx=188/W, sy=132/H;
