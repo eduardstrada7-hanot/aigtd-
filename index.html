@@ -184,6 +184,27 @@
   #achToast .tn{font-weight:800; font-size:15px; color:var(--text);}
   #achToast .td2{font-size:11px; color:var(--dim);}
 
+  /* Daily button pulse when claimable */
+  #btnDaily.ready{animation:dailypulse 1.1s ease-in-out infinite;}
+  @keyframes dailypulse{0%,100%{box-shadow:0 0 6px rgba(255,200,87,.4);}50%{box-shadow:0 0 18px rgba(255,200,87,.8);}}
+
+  /* Tower skins grid */
+  #skinGrid{display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin:18px 0; text-align:center;}
+  .skinCard{background:rgba(0,0,0,.28); border:2px solid var(--edge); border-radius:11px; padding:9px 6px; cursor:pointer; transition:transform .08s,border-color .12s;}
+  .skinCard:hover{transform:translateY(-2px);}
+  .skinCard.equipped{border-color:var(--gold); box-shadow:0 0 12px rgba(255,200,87,.3);}
+  .skinCard canvas{width:46px; height:46px; display:block; margin:0 auto 4px;}
+  .skinCard .sknm{font-size:11.5px; font-weight:700;}
+  .skinCard .skpr{font-size:11px; margin-top:2px;}
+  .skinCard .skpr.own{color:var(--green);} .skinCard .skpr.rp{color:var(--cyan);} .skinCard .skpr.prem{color:var(--gold);}
+
+  /* Tutorial dots */
+  #tutDots span{display:inline-block; width:8px; height:8px; border-radius:50%; background:var(--edge); margin:0 4px;}
+  #tutDots span.on{background:var(--gold); width:20px; border-radius:5px;}
+
+  /* Demo ad */
+  #adOverlay .modal{border-color:var(--gold);}
+
   /* Menu sub-buttons */
   #menuBtns{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:wrap;}
   #menuBtns button{padding:9px 18px; font-size:13px;}
@@ -263,6 +284,7 @@
         <div class="title">Incoming Wave</div>
         <div id="wavePreview"></div>
         <button id="btnWave" class="gold">Start Wave 1</button>
+        <button id="btnDblGold" class="primary" style="display:none; width:100%; margin-top:6px;">📺 Double wave gold</button>
         <label style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);margin-top:7px;cursor:pointer;">
           <input type="checkbox" id="chkAuto" checked> Auto-start next wave
         </label>
@@ -289,9 +311,12 @@
     <div id="skinRow"></div>
     <button class="gold" id="btnStart" style="font-size:16px; padding:12px 44px; letter-spacing:2px;">⚔ &nbsp;DEFEND</button>
     <div id="menuBtns">
+      <button id="btnDaily" class="gold">🎁 Daily</button>
       <button id="btnResearch" class="primary">🔬 Research <span id="menuRp" class="rpBadge" style="margin-left:4px;">0</span></button>
       <button id="btnAch" class="primary">🏅 Achievements <span id="menuAch" class="rpBadge" style="margin-left:4px;">0</span></button>
+      <button id="btnSkins" class="primary">🎨 Skins</button>
       <button id="btnEditor" class="primary">🛠 Level Editor</button>
+      <button id="btnTutorial" class="primary">❔ Tutorial</button>
     </div>
     <div id="bestWave"></div>
     <div id="howto">
@@ -364,9 +389,78 @@
       <div><div class="n" id="esRp" style="color:var(--cyan)">0</div><div class="l">Research pts</div></div>
     </div>
     <div id="endRp" style="color:var(--cyan); font-size:12.5px; margin:-6px 0 14px;"></div>
+    <button class="gold" id="btnRevive" style="display:none; padding:12px 24px; font-size:15px; margin-bottom:12px;">📺 Revive — restore 15 lives</button>
     <div class="btnrow" style="justify-content:center;">
       <button class="gold" id="btnContinue" style="padding:11px 26px;">∞ Continue (Endless)</button>
       <button class="primary" id="btnAgain" style="padding:11px 26px;">↻ Play Again</button>
+    </div>
+  </div>
+</div>
+
+<!-- DAILY REWARD -->
+<div class="overlay hidden" id="daily">
+  <div class="modal" style="max-width:420px;">
+    <h2>🎁 DAILY REWARD</h2>
+    <div class="tag" id="dailyStreak"></div>
+    <div style="font-size:54px; margin:6px 0;">🎁</div>
+    <div style="font-size:13px; color:var(--dim); margin-bottom:4px;">Today's reward</div>
+    <div id="dailyAmt" class="rpBadge" style="font-size:18px; padding:6px 18px;">+0 RP</div>
+    <div class="btnrow" style="justify-content:center; margin-top:18px;">
+      <button class="gold" id="btnClaimDaily" style="padding:11px 26px;">Claim</button>
+      <button class="primary" id="btnClaimDaily2" style="padding:11px 22px;">📺 Claim ×2</button>
+    </div>
+    <button id="btnDailyBack" style="margin-top:12px; padding:8px 26px;">◀ Back</button>
+  </div>
+</div>
+
+<!-- TOWER SKINS -->
+<div class="overlay hidden" id="skins">
+  <div class="modal">
+    <h2>🎨 TOWER SKINS</h2>
+    <div class="tag">Cosmetic finishes for your towers. <span class="rpBadge" id="skinRp">0 RP</span></div>
+    <div id="skinGrid"></div>
+    <div class="btnrow" style="justify-content:center;">
+      <button id="btnRestore" style="padding:8px 18px;">↺ Restore purchases</button>
+      <button class="gold" id="btnSkinsBack" style="padding:9px 30px;">◀ Back</button>
+    </div>
+  </div>
+</div>
+
+<!-- TUTORIAL -->
+<div class="overlay hidden" id="tutorial">
+  <div class="modal" style="max-width:460px;">
+    <div id="tutIcon" style="font-size:52px; margin-bottom:4px;">⚔</div>
+    <h2 id="tutTitle" style="font-size:22px;">WELCOME</h2>
+    <div id="tutBody" style="color:var(--text); font-size:14px; line-height:1.55; margin:10px 4px 6px; text-align:left;"></div>
+    <div id="tutDots" style="margin:14px 0;"></div>
+    <div class="btnrow" style="justify-content:center;">
+      <button id="tutSkip" style="padding:9px 20px;">Skip</button>
+      <button class="gold" id="tutNext" style="padding:9px 34px;">Next ▶</button>
+    </div>
+  </div>
+</div>
+
+<!-- DEMO AD -->
+<div class="overlay hidden" id="adOverlay" style="z-index:80;">
+  <div class="modal" style="max-width:360px; text-align:center;">
+    <div style="font-size:10px; letter-spacing:2px; color:var(--dim); text-transform:uppercase;">Advertisement · demo</div>
+    <div style="font-size:46px; margin:14px 0;">📺</div>
+    <div id="adMsg" style="color:var(--text); font-size:14px;">Your reward is on the way…</div>
+    <div id="adCountdown" style="color:var(--gold); font-size:30px; font-weight:800; margin:12px 0;">3</div>
+    <div style="font-size:11px; color:var(--dim);">This is where a real rewarded ad plays in the app build.</div>
+    <button id="adClose" style="margin-top:14px; padding:7px 22px; display:none;">✕ Close (no reward)</button>
+  </div>
+</div>
+
+<!-- CONFIRM -->
+<div class="overlay hidden" id="confirm" style="z-index:85;">
+  <div class="modal" style="max-width:360px; text-align:center;">
+    <h2 id="cfTitle" style="font-size:20px;">Confirm</h2>
+    <div id="cfMsg" style="color:var(--text); font-size:14px; margin:8px 0;"></div>
+    <div id="cfSub" style="color:var(--dim); font-size:12px; margin-bottom:14px;"></div>
+    <div class="btnrow" style="justify-content:center;">
+      <button id="cfCancel" style="padding:9px 24px;">Cancel</button>
+      <button class="gold" id="cfOk" style="padding:9px 30px;">Confirm</button>
     </div>
   </div>
 </div>
@@ -695,6 +789,7 @@ const META=(()=>{
     buy(n){ if(!this.canBuy(n)) return false; data.rp-=n.cost; data.researched.push(n.id); recompute(); save(); return true; },
     unlocked(towerKey){ return RESEARCH.some(r=>r.unlocks===towerKey&&data.researched.includes(r.id)); },
     award(n){ data.rp+=n; save(); },
+    spend(n){ if(data.rp<n) return false; data.rp-=n; save(); return true; },
     respec(){ let spent=0; for(const id of data.researched){ const n=RESEARCH.find(r=>r.id===id); if(n) spent+=n.cost; } data.rp+=spent; data.researched=[]; recompute(); save(); return spent; },
   };
 })();
@@ -749,6 +844,99 @@ const ACH=(()=>{
 })();
 //#endregion
 
+//#region ===== Monetization stubs (ads + IAP) =====
+/* These are the ONLY two integration points a native (Capacitor) shell needs to
+   wire to AdMob + RevenueCat. The web build runs a clearly-labelled demo. */
+const IAP=(()=>{
+  let owned=[]; try{ const s=JSON.parse(localStorage.getItem('td_iap')); if(Array.isArray(s)) owned=s; }catch(e){}
+  let removeAds=localStorage.getItem('td_removeads')==='1';
+  function save(){ try{ localStorage.setItem('td_iap',JSON.stringify(owned)); }catch(e){} }
+  return {
+    owns(sku){ return owned.includes(sku); },
+    get removeAds(){ return removeAds; },
+    grant(sku){ if(!owned.includes(sku)) owned.push(sku); if(sku==='remove_ads') { removeAds=true; localStorage.setItem('td_removeads','1'); } save(); },
+    // NATIVE HOOK: set window.BastionNativeIAP.purchase(sku) => Promise<bool> (RevenueCat)
+    async purchase(sku){
+      if(window.BastionNativeIAP&&window.BastionNativeIAP.purchase){
+        const ok=await window.BastionNativeIAP.purchase(sku);
+        if(ok) this.grant(sku);
+        return ok;
+      }
+      // web demo: confirm + grant locally
+      const ok=await uiConfirm('Purchase','Unlock “'+(SKU_NAMES[sku]||sku)+'”?',(IAP_PRICES[sku]||'$1.99')+' · demo purchase');
+      if(ok) this.grant(sku);
+      return ok;
+    },
+    async restore(){
+      if(window.BastionNativeIAP&&window.BastionNativeIAP.restore){ const skus=await window.BastionNativeIAP.restore(); (skus||[]).forEach(s=>this.grant(s)); return true; }
+      return false;
+    }
+  };
+})();
+const SKU_NAMES={remove_ads:'Remove Ads', skin_gold:'Golden Arsenal', skin_neon:'Neon Arsenal'};
+const IAP_PRICES={remove_ads:'$2.99', skin_gold:'$1.99', skin_neon:'$1.99'};
+
+const ADS={
+  // NATIVE HOOK: set window.BastionNativeAds.showRewarded(placement) => Promise<bool> (AdMob)
+  async showRewarded(placement){
+    if(window.BastionNativeAds&&window.BastionNativeAds.showRewarded){
+      try{ return await window.BastionNativeAds.showRewarded(placement); }catch(e){ return false; }
+    }
+    return demoAd(placement); // web fallback
+  }
+};
+//#endregion
+
+//#region ===== Daily reward =====
+const DAILY=(()=>{
+  let data={last:'', streak:0};
+  try{ const s=JSON.parse(localStorage.getItem('td_daily')); if(s&&typeof s.streak==='number'){ data=s; } }catch(e){}
+  const today=()=>new Date().toISOString().slice(0,10);
+  const dayNum=d=>Math.floor(new Date(d+'T00:00:00').getTime()/86400000);
+  function save(){ try{ localStorage.setItem('td_daily',JSON.stringify(data)); }catch(e){} }
+  return {
+    get streak(){ return data.streak; },
+    available(){ return data.last!==today(); },
+    reward(){ const s=this.available()?(data.last&&dayNum(today())-dayNum(data.last)===1?data.streak+1:1):data.streak; return Math.min(20, 4+(s-1)*2); },
+    claim(){
+      if(!this.available()) return 0;
+      const cont=data.last&&dayNum(today())-dayNum(data.last)===1;
+      data.streak=cont?data.streak+1:1;
+      data.last=today();
+      const rp=Math.min(20, 4+(data.streak-1)*2);
+      META.award(rp); save();
+      return rp;
+    }
+  };
+})();
+//#endregion
+
+//#region ===== Cosmetic tower skins =====
+const TOWER_SKINS={
+  steel:   {name:'Steel',    base:['#3c4763','#222a3e'], rim:null,      price:0},
+  obsidian:{name:'Obsidian', base:['#3a3a46','#16161d'], rim:'#7b7b8c', priceRP:8},
+  emerald: {name:'Emerald',  base:['#2f6b50','#163a2a'], rim:'#5fd68b', priceRP:12},
+  crimson: {name:'Crimson',  base:['#7a2f3a','#3a1620'], rim:'#ff6b6b', priceRP:12},
+  royal:   {name:'Royal',    base:['#3d3a8a','#1e1c44'], rim:'#9d9dff', priceRP:18},
+  gold:    {name:'Golden',   base:['#a8842c','#5a4310'], rim:'#ffd97a', sku:'skin_gold'},
+  neon:    {name:'Neon',     base:['#163a3a','#0a1a1a'], rim:'#6be4ff', sku:'skin_neon'},
+};
+const SKIN_KEYS=Object.keys(TOWER_SKINS);
+const SKINS=(()=>{
+  let owned=['steel'];
+  try{ const s=JSON.parse(localStorage.getItem('td_skins_owned')); if(Array.isArray(s)) owned=[...new Set(['steel',...s])]; }catch(e){}
+  let active=localStorage.getItem('td_tskin'); if(!TOWER_SKINS[active]) active='steel';
+  function save(){ try{ localStorage.setItem('td_skins_owned',JSON.stringify(owned)); localStorage.setItem('td_tskin',active); }catch(e){} }
+  return {
+    get active(){ return active; },
+    def(){ return TOWER_SKINS[active]; },
+    owns(k){ const d=TOWER_SKINS[k]; if(!d) return false; if(d.sku) return owned.includes(k)||IAP.owns(d.sku); return owned.includes(k); },
+    equip(k){ if(this.owns(k)){ active=k; save(); return true; } return false; },
+    grant(k){ if(!owned.includes(k)) owned.push(k); save(); },
+  };
+})();
+//#endregion
+
 //#region ===== Game state =====
 const DIFFS=[
   {key:'easy',  name:'Easy',  hp:0.82, gold:280, lives:25, rp:0.8},
@@ -769,7 +957,7 @@ function newGame(mapIdx,diffIdx){
     state:'play', mapIdx, mapSeed, diffIdx, diff, mapDef, skin:menuSkin,
     path:buildPath(mapDef),
     gold:Math.round(diff.gold*(1+mb.startGold)), lives:diff.lives+mb.startLives,
-    wave:0, waveActive:false, endless:false, rpEarned:0, lostLife:false,
+    wave:0, waveActive:false, endless:false, rpEarned:0, lostLife:false, revived:false, dblGoldT:0,
     kills:0, goldEarned:0,
     enemies:[], towers:[], projectiles:[], beams:[], particles:[], texts:[], rings:[],
     towerAt:new Map(),
@@ -798,7 +986,7 @@ function startWave(early){
     const bonus=Math.floor(g.nextTimer*(2+g.wave*0.5)*(1+META.bonus.earlyMul));
     if(bonus>0){ addGold(bonus); floatText(W/2,90,'+'+bonus+' early bonus!','#ffc857',16); }
   }
-  g.wave++; g.nextTimer=-1; g.waveActive=true; g.spawnT=0;
+  g.wave++; g.nextTimer=-1; g.waveActive=true; g.spawnT=0; g.dblGoldBonus=0;
   if(g.wave>=10) ACH.unlock('wave10');
   if(g.wave>=20) ACH.unlock('wave20');
   if(g.wave>=50) ACH.unlock('endless50');
@@ -840,6 +1028,8 @@ function onWaveCleared(){
   const interest=Math.min(60+META.bonus.interestCap,Math.floor(g.gold*(0.05+META.bonus.interestRate)));
   addGold(bonus+interest);
   floatText(W/2,70,'Wave cleared! +'+bonus+(interest?' (+'+interest+' interest)':''),'#5fd68b',15);
+  // offer a rewarded "double this wave's bonus" until the next wave starts
+  g.dblGoldBonus=(!IAP.removeAds)?bonus:0;
   if(g.wave>=FINAL_WAVE&&!g.endless){ endGame(true); return; }
   g.nextTimer=14;
   updatePreviewUI();
@@ -1290,7 +1480,17 @@ function endGame(win){
   document.getElementById('esRp').textContent='+'+g.rpEarned;
   document.getElementById('endRp').innerHTML='🔬 +'+g.rpEarned+' Research Points earned · <b style="color:var(--cyan)">'+META.rp+' RP</b> available to spend';
   document.getElementById('btnContinue').style.display=win?'':'none';
+  // offer a one-time rewarded revive on defeat
+  document.getElementById('btnRevive').style.display=(!win&&!g.revived&&!IAP.removeAds)?'':'none';
   document.getElementById('endOverlay').classList.remove('hidden');
+}
+function reviveRun(){
+  const g=game; if(!g||g.state!=='gameover'||g.revived) return;
+  g.revived=true; g.lostLife=true;
+  g.lives=15; g.state='play'; g.paused=false;
+  document.getElementById('endOverlay').classList.add('hidden');
+  g.announce={text:'REINFORCEMENTS!',sub:'The keep holds — for now.',life:2.4,max:2.4};
+  SFX.play('upgrade');
 }
 //#endregion
 
@@ -1374,9 +1574,10 @@ function drawTurret(x,y,kind,lvl,angle,recoil,opts={}){
     ctx.fillStyle='rgba(0,0,0,0.35)';
     ctx.beginPath(); ctx.arc(2,3,16*k,0,TAU); ctx.fill();
   }
+  const sk=SKINS.def();
   const grad=ctx.createRadialGradient(-4,-4,2,0,0,17*k);
-  grad.addColorStop(0,'#3c4763'); grad.addColorStop(1,'#222a3e');
-  ctx.fillStyle=grad; ctx.strokeStyle='#11151f'; ctx.lineWidth=1.5;
+  grad.addColorStop(0,sk.base[0]); grad.addColorStop(1,sk.base[1]);
+  ctx.fillStyle=grad; ctx.strokeStyle=sk.rim||'#11151f'; ctx.lineWidth=sk.rim?2:1.5;
   ctx.beginPath(); ctx.arc(0,0,15*k,0,TAU); ctx.fill(); ctx.stroke();
   // turret per kind
   ctx.save(); ctx.rotate(angle);
@@ -2081,9 +2282,10 @@ function drawIconInto(c2,key){
     c2.save(); c2.translate(19,19);
     // mimic: draw base circle + colored glyph
     const def=TOWERS[key];
+    const sk0=SKINS.def();
     const grad=c2.createRadialGradient(-4,-4,2,0,0,16);
-    grad.addColorStop(0,'#3c4763'); grad.addColorStop(1,'#222a3e');
-    c2.fillStyle=grad; c2.strokeStyle='#11151f'; c2.lineWidth=1.5;
+    grad.addColorStop(0,sk0.base[0]); grad.addColorStop(1,sk0.base[1]);
+    c2.fillStyle=grad; c2.strokeStyle=sk0.rim||'#11151f'; c2.lineWidth=sk0.rim?2:1.5;
     c2.beginPath(); c2.arc(0,0,15,0,TAU); c2.fill(); c2.stroke();
     c2.fillStyle=def.color; c2.strokeStyle=def.color;
     switch(key){
@@ -2244,7 +2446,19 @@ function updateHUD(){
     const bU=$('btnUp');
     if(bU&&next) bU.disabled=g.gold<next.cost;
   }
+  // rewarded double-gold offer (only between waves)
+  const bd=$('btnDblGold');
+  const showDbl=!g.waveActive && g.dblGoldBonus>0;
+  bd.style.display=showDbl?'':'none';
+  if(showDbl) bd.textContent='📺 Double wave gold (+'+g.dblGoldBonus+')';
 }
+$('btnDblGold').addEventListener('click',async()=>{
+  const g=game; if(!g||!g.dblGoldBonus) return;
+  const amt=g.dblGoldBonus; $('btnDblGold').disabled=true;
+  const ok=await ADS.showRewarded('double_gold');
+  $('btnDblGold').disabled=false;
+  if(ok&&g.dblGoldBonus){ addGold(amt); floatText(W/2,70,'+'+amt+' bonus gold!','#ffc857',16); g.dblGoldBonus=0; SFX.play('coin'); }
+});
 $('btnWave').addEventListener('click',()=>{ SFX.ensure(); startWave(true); });
 $('chkAuto').addEventListener('change',ev=>{ if(game) game.autoStart=ev.target.checked; });
 function togglePause(){
@@ -2280,10 +2494,7 @@ $('btnMenu').addEventListener('click',()=>{ showMenu(); });
 // ----- menu -----
 function showMenu(){
   if(game) game.paused=true;
-  $('endOverlay').classList.add('hidden');
-  $('research').classList.add('hidden');
-  $('editor').classList.add('hidden');
-  $('achievements').classList.add('hidden');
+  ['endOverlay','research','editor','achievements','daily','skins','tutorial'].forEach(id=>$(id).classList.add('hidden'));
   $('menu').classList.remove('hidden');
   const best=+(localStorage.getItem('td_best')||0);
   $('bestWave').textContent=best?('☆ Personal best: wave '+best):'';
@@ -2291,6 +2502,9 @@ function showMenu(){
   $('menuRp').textContent=META.rp;
   $('menuAch').textContent=ACH.count()+'/'+ACHIEVEMENTS.length;
   renderMapCards();
+  refreshDailyBtn();
+  // first-run tutorial (once)
+  if(!localStorage.getItem('td_tutorial') && !tutAutoShown){ tutAutoShown=true; openTutorial(false); }
 }
 const mapCardsEl=$('mapCards');
 function drawMiniMap(mc,m){
@@ -2372,6 +2586,12 @@ $('btnStart').addEventListener('click',()=>{
 $('btnAgain').addEventListener('click',()=>{
   $('endOverlay').classList.add('hidden');
   showMenu();
+});
+$('btnRevive').addEventListener('click',async()=>{
+  $('btnRevive').disabled=true;
+  const ok=await ADS.showRewarded('revive');
+  $('btnRevive').disabled=false;
+  if(ok) reviveRun();
 });
 $('btnContinue').addEventListener('click',()=>{
   $('endOverlay').classList.add('hidden');
@@ -2524,6 +2744,138 @@ $('edSave').addEventListener('click',()=>{
   ACH.unlock('architect');
   edStatusMsg('Saved "'+name+'" — it’s now in your map list. Back to menu to play it.','#5fd68b');
 });
+//#endregion
+
+//#region ===== Ads / IAP UI (demo) + confirm =====
+function demoAd(placement){
+  return new Promise(res=>{
+    const ov=$('adOverlay'), cd=$('adCountdown'), close=$('adClose');
+    $('adMsg').textContent='Your reward is on the way…';
+    let n=3; cd.textContent=n; close.style.display='none'; ov.classList.remove('hidden');
+    let done=false;
+    const finish=(val)=>{ if(done)return; done=true; clearInterval(iv); ov.classList.add('hidden'); res(val); };
+    close.onclick=()=>finish(false);
+    const iv=setInterval(()=>{
+      n--; cd.textContent=n>0?n:'✓';
+      if(n<=0){ clearInterval(iv); $('adMsg').textContent='Reward unlocked!'; close.style.display='none'; setTimeout(()=>finish(true),650); }
+      else if(n===1) close.style.display='inline-block';
+    },1000);
+  });
+}
+function uiConfirm(title,msg,sub){
+  return new Promise(res=>{
+    $('cfTitle').textContent=title; $('cfMsg').textContent=msg; $('cfSub').textContent=sub||'';
+    const ov=$('confirm');
+    ov.classList.remove('hidden');
+    const done=v=>{ ov.classList.add('hidden'); res(v); };
+    $('cfOk').onclick=()=>done(true);
+    $('cfCancel').onclick=()=>done(false);
+  });
+}
+//#endregion
+
+//#region ===== Daily reward =====
+function refreshDailyBtn(){
+  const b=$('btnDaily'); if(!b) return;
+  b.classList.toggle('ready', DAILY.available());
+  b.textContent=DAILY.available()?'🎁 Daily!':'🎁 Daily';
+}
+$('btnDaily').addEventListener('click',()=>{
+  SFX.ensure();
+  $('menu').classList.add('hidden'); $('daily').classList.remove('hidden');
+  const avail=DAILY.available();
+  $('dailyStreak').innerHTML=avail?('Day '+ (DAILY.streak+ (DAILY.available()?1:0)) +' · keep your streak alive!'):('Come back tomorrow · streak '+DAILY.streak);
+  $('dailyAmt').textContent='+'+DAILY.reward()+' RP';
+  $('btnClaimDaily').disabled=!avail; $('btnClaimDaily2').disabled=!avail;
+  $('btnClaimDaily').textContent=avail?'Claim':'Claimed ✓';
+});
+function doClaimDaily(mult){
+  if(!DAILY.available()) return;
+  const rp=DAILY.claim();          // awards the base RP
+  if(mult>1) META.award(rp);       // ×2 reward: grant the base amount again
+  $('dailyAmt').textContent='+'+(rp*mult)+' RP claimed!';
+  $('btnClaimDaily').disabled=true; $('btnClaimDaily2').disabled=true; $('btnClaimDaily').textContent='Claimed ✓';
+  SFX.play('coin'); refreshDailyBtn();
+}
+$('btnClaimDaily').addEventListener('click',()=>doClaimDaily(1));
+$('btnClaimDaily2').addEventListener('click',async()=>{
+  if(!DAILY.available()) return;
+  const ok=await ADS.showRewarded('daily_double');
+  if(ok) doClaimDaily(2); else doClaimDaily(1);
+});
+$('btnDailyBack').addEventListener('click',()=>{ $('daily').classList.add('hidden'); showMenu(); });
+//#endregion
+
+//#region ===== Tower skins shop =====
+function drawSkinPreview(c2,key){
+  const d=TOWER_SKINS[key];
+  c2.clearRect(0,0,46,46); c2.save(); c2.translate(23,23);
+  const g=c2.createRadialGradient(-5,-5,2,0,0,21);
+  g.addColorStop(0,d.base[0]); g.addColorStop(1,d.base[1]);
+  c2.fillStyle=g; c2.strokeStyle=d.rim||'#11151f'; c2.lineWidth=d.rim?2.5:1.5;
+  c2.beginPath(); c2.arc(0,0,19,0,TAU); c2.fill(); c2.stroke();
+  c2.fillStyle='#9db8ff'; c2.fillRect(0,-3,18,6); // a gunner-ish barrel
+  c2.fillStyle=d.base[0]; c2.beginPath(); c2.arc(0,0,8,0,TAU); c2.fill();
+  c2.restore();
+}
+function renderSkins(){
+  $('skinRp').textContent=META.rp+' RP';
+  const grid=$('skinGrid'); grid.innerHTML='';
+  for(const key of SKIN_KEYS){
+    const d=TOWER_SKINS[key], owned=SKINS.owns(key), equipped=SKINS.active===key;
+    const card=document.createElement('div');
+    card.className='skinCard'+(equipped?' equipped':'');
+    let price;
+    if(equipped) price='<span class="skpr own">✓ Equipped</span>';
+    else if(owned) price='<span class="skpr own">Tap to equip</span>';
+    else if(d.sku) price='<span class="skpr prem">💎 '+(IAP_PRICES[d.sku]||'$1.99')+'</span>';
+    else price='<span class="skpr rp">🔬 '+d.priceRP+' RP</span>';
+    card.innerHTML='<canvas width="46" height="46"></canvas><div class="sknm">'+d.name+'</div>'+price;
+    grid.appendChild(card);
+    drawSkinPreview(card.querySelector('canvas').getContext('2d'),key);
+    card.addEventListener('click',async()=>{
+      SFX.ensure();
+      if(SKINS.owns(key)){ SKINS.equip(key); SFX.play('place'); refreshShopIcons(); renderSkins(); return; }
+      if(d.sku){ const ok=await IAP.purchase(d.sku); if(ok){ SKINS.grant(key); SKINS.equip(key); refreshShopIcons(); } renderSkins(); }
+      else { if(META.spend(d.priceRP)){ SKINS.grant(key); SKINS.equip(key); SFX.play('upgrade'); refreshShopIcons(); } else { SFX.play('error'); } renderSkins(); }
+    });
+  }
+}
+function refreshShopIcons(){
+  for(const el of shopEl.children){ const c2=el.querySelector('canvas').getContext('2d'); c2.clearRect(0,0,38,38); drawIconInto(c2,el.dataset.type); }
+}
+$('btnSkins').addEventListener('click',()=>{ SFX.ensure(); $('menu').classList.add('hidden'); $('skins').classList.remove('hidden'); renderSkins(); });
+$('btnSkinsBack').addEventListener('click',()=>{ $('skins').classList.add('hidden'); showMenu(); });
+$('btnRestore').addEventListener('click',async()=>{ await IAP.restore(); renderSkins(); });
+//#endregion
+
+//#region ===== Tutorial =====
+const TUT_STEPS=[
+  {icon:'⚔', title:'WELCOME, COMMANDER', body:'The horde marches along the road toward your keep. Your job: build towers beside the road and stop every wave before it reaches the gate.'},
+  {icon:'🏗️', title:'BUILD TOWERS', body:'Pick a tower from the shop (or press keys <b>1–8</b>), then tap a grass tile next to the road to place it. Each tower has its own strengths — Gunners shred swarms, Cannons splash, Frost slows.'},
+  {icon:'🌊', title:'CALL THE WAVES', body:'Press <b>Start Wave</b> when you’re ready. Call waves <b>early</b> for bonus gold. Earn gold from kills and wave bonuses — and 5% interest on what you’ve saved.'},
+  {icon:'⬆️', title:'UPGRADE & ADAPT', body:'Tap a placed tower to <b>upgrade</b> it, change its <b>targeting</b>, or sell it. Watch the next-wave preview and counter what’s coming — flyers, armored tanks, healers and bosses each need a different answer.'},
+  {icon:'🔬', title:'GROW STRONGER', body:'Win waves to earn <b>Research Points</b> that unlock permanent upgrades and secret towers. Collect a <b>Daily reward</b>, chase achievements, change enemy factions, and even build your own maps. Now — hold the line!'},
+];
+let tutIndex=0, tutAutoShown=false;
+function renderTut(){
+  const s=TUT_STEPS[tutIndex];
+  $('tutIcon').textContent=s.icon; $('tutTitle').textContent=s.title; $('tutBody').innerHTML=s.body;
+  $('tutDots').innerHTML=TUT_STEPS.map((_,i)=>'<span class="'+(i===tutIndex?'on':'')+'"></span>').join('');
+  $('tutNext').textContent=tutIndex===TUT_STEPS.length-1?'Got it ⚔':'Next ▶';
+}
+function openTutorial(fromMenu){
+  tutIndex=0; renderTut();
+  $('menu').classList.add('hidden'); $('tutorial').classList.remove('hidden');
+  $('tutorial').dataset.from=fromMenu?'menu':'auto';
+}
+function closeTutorial(){
+  localStorage.setItem('td_tutorial','1');
+  $('tutorial').classList.add('hidden'); showMenu();
+}
+$('btnTutorial').addEventListener('click',()=>{ SFX.ensure(); openTutorial(true); });
+$('tutSkip').addEventListener('click',closeTutorial);
+$('tutNext').addEventListener('click',()=>{ if(tutIndex<TUT_STEPS.length-1){ tutIndex++; renderTut(); } else closeTutorial(); });
 //#endregion
 
 //#region ===== Loop =====
