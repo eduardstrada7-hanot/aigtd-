@@ -323,6 +323,7 @@
         <button id="btnPause" title="Space">⏸</button>
         <button id="btnSpeed" title="F">▶ 1×</button>
         <button id="btnMute">🔊</button>
+        <button id="btnMusic" title="Music">🎵</button>
         <button id="btnMenu">☰ Menu</button>
       </div>
     </aside>
@@ -598,8 +599,53 @@ const SFX=(()=>{
   }
   return {
     play, ensure,
+    get ctx(){return ctx;},
     get muted(){return muted;},
     toggle(){muted=!muted; localStorage.setItem('td_mute',muted?'1':'0'); return muted;}
+  };
+})();
+//#endregion
+
+//#region ===== Music (procedural soundtrack) =====
+const MUSIC=(()=>{
+  let on=localStorage.getItem('td_music')!=='0';
+  let gain=null, timer=null, step=0, nextT=0, intensity=0;
+  const BPM=100, spb=60/BPM/2;                 // eighth-note step
+  // A natural-minor flavoured loop: 4 "chords", each lasting 4 steps (16-step loop)
+  const ch=[
+    {bass:55.00,  arp:[220.0,261.6,329.6,261.6]},   // Am
+    {bass:49.00,  arp:[196.0,293.7,392.0,293.7]},   // G
+    {bass:65.41,  arp:[261.6,329.6,392.0,329.6]},   // C
+    {bass:41.20,  arp:[329.6,392.0,440.0,392.0]},   // E(minor lead)
+  ];
+  function ictx(){ if(!SFX.ensure()) return null; const c=SFX.ctx; if(!gain){ gain=c.createGain(); gain.gain.value=0.0; gain.connect(c.destination); } return c; }
+  function note(c,type,f,t,dur,vol){ const o=c.createOscillator(),g=c.createGain(); o.type=type; o.frequency.value=f; g.gain.setValueAtTime(0.0001,t); g.gain.linearRampToValueAtTime(vol,t+0.02); g.gain.exponentialRampToValueAtTime(0.0001,t+dur); o.connect(g); g.connect(gain); o.start(t); o.stop(t+dur+0.02); }
+  function kick(c,t){ const o=c.createOscillator(),g=c.createGain(); o.type='sine'; o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(45,t+0.12); g.gain.setValueAtTime(0.5,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.16); o.connect(g); g.connect(gain); o.start(t); o.stop(t+0.18); }
+  function hat(c,t,vol){ const len=(0.03*c.sampleRate)|0,b=c.createBuffer(1,len,c.sampleRate),d=b.getChannelData(0); for(let i=0;i<len;i++)d[i]=Math.random()*2-1; const s=c.createBufferSource(); s.buffer=b; const f=c.createBiquadFilter(); f.type='highpass'; f.frequency.value=7000; const g=c.createGain(); g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.04); s.connect(f); f.connect(g); g.connect(gain); s.start(t); }
+  function schedule(){
+    const c=SFX.ctx; if(!c) return;
+    while(nextT < c.currentTime + 0.12){
+      const bar=Math.floor(step/4)%4, cc=ch[bar], inWave=intensity>0.5;
+      // bass on each step (root, soft)
+      note(c,'triangle',cc.bass,nextT,spb*1.9,0.16+intensity*0.12);
+      // arp lead
+      note(c,'square',cc.arp[step%4],nextT,spb*0.9,(0.025+intensity*0.05));
+      if(step%4===2) note(c,'sine',cc.arp[step%4]*2,nextT,spb*0.8,0.02+intensity*0.03);
+      // drums when a wave is live
+      if(inWave){
+        if(step%4===0) kick(c,nextT);
+        hat(c,nextT,step%2?0.05:0.08);
+      }
+      step=(step+1)%16; nextT+=spb;
+    }
+  }
+  function start(){ if(!on) return; const c=ictx(); if(!c) return; if(timer) return; nextT=c.currentTime+0.06; step=0; gain.gain.cancelScheduledValues(c.currentTime); gain.gain.linearRampToValueAtTime(0.5,c.currentTime+1.5); timer=setInterval(schedule,25); }
+  function stop(){ if(timer){ clearInterval(timer); timer=null; } if(gain&&SFX.ctx) gain.gain.linearRampToValueAtTime(0.0,SFX.ctx.currentTime+0.4); }
+  return {
+    setIntensity(v){ intensity=clamp(v,0,1); },
+    start, stop,
+    get on(){return on;},
+    toggle(){ on=!on; localStorage.setItem('td_music',on?'1':'0'); if(on) start(); else stop(); return on; }
   };
 })();
 //#endregion
@@ -1054,15 +1100,25 @@ function startWave(early){
       g.queue.push({t:grp.delay+i*grp.gap,type:grp.type});
   g.queue.sort((a,b)=>a.t-b.t);
   const boss=g.wave%10===0;
-  g.announce={text:'WAVE '+g.wave, sub:boss?'⚠ A WARLORD APPROACHES ⚠':'', life:2.4, max:2.4};
+  let bsub='';
+  if(boss){
+    const pw=bossPowersForWave(g.wave), nm={summon:'Summoner',shield:'Shielded',enrage:'Berserker'};
+    bsub=pw.length>=3?'⚠ THE FINAL WARLORD ⚠':'⚠ WARLORD · '+pw.map(p=>nm[p]).join(' + ')+' ⚠';
+  }
+  g.announce={text:'WAVE '+g.wave, sub:bsub, life:2.4, max:2.4};
   SFX.play(boss?'boss':'wave');
   updatePreviewUI();
+}
+function bossPowersForWave(w){
+  if(w>=40) return ['summon','shield','enrage'];
+  const t=Math.floor(w/10);                       // 1,2,3,...
+  return [['summon'],['shield'],['enrage']][(t-1)%3]||['summon'];
 }
 function spawnEnemy(type,dOffset=0){
   const g=game, def=ENEMIES[type];
   const mul=hpMul(g.wave,g.diff.hp);
   const hp=Math.round(def.hp*mul*(def.boss?1+g.wave*0.012:1));
-  g.enemies.push({
+  const e={
     type,def,hp,maxHp:hp,
     shield:def.shield?Math.round(def.shield*mul):0,
     maxShield:def.shield?Math.round(def.shield*mul):0,
@@ -1072,7 +1128,9 @@ function spawnEnemy(type,dOffset=0){
     gold:Math.ceil(def.gold*(1+(g.wave-1)*0.02)),
     dead:false,wob:rand(0,TAU),
     dmgAccum:0,dmgFlushT:0,
-  });
+  };
+  if(def.boss){ e.bossPowers=bossPowersForWave(g.wave); e.bossT1=4.5; e.bossT2=7; e.enraged=false; }
+  g.enemies.push(e);
 }
 function applyPoison(e,dps,dur,src){
   if(dps>=e.poisonDps||e.poisonT<=0){ e.poisonDps=dps; e.poisonSrc=src; }
@@ -1345,7 +1403,9 @@ function fireTower(t,tgt,eff){
 //#region ===== Enemies update =====
 function enemySpeed(e){
   if(e.stunT>0) return 0;
-  return e.def.spd*(e.slowT>0?(1-e.slowPct):1);
+  let s=e.def.spd*(e.slowT>0?(1-e.slowPct):1);
+  if(e.enraged) s*=1.6;
+  return s;
 }
 function updateEnemy(e,dt){
   const g=game;
@@ -1353,14 +1413,36 @@ function updateEnemy(e,dt){
   if(e.slowT<=0) e.slowPct=0;
   e.d+=enemySpeed(e)*dt;
   e.pos=posAtDist(g.path,e.d);
+  // boss special abilities
+  if(e.def.boss&&e.bossPowers){
+    if(e.bossPowers.includes('summon')){
+      e.bossT1-=dt;
+      if(e.bossT1<=0&&g.enemies.length<70){
+        e.bossT1=6.5;
+        const n=2+Math.floor(g.wave/20);
+        for(let i=0;i<n;i++) spawnEnemy('grunt', Math.max(0,e.d-26-i*16));
+        ring(e.pos.x,e.pos.y,46,'#ff9f43'); floatText(e.pos.x,e.pos.y-e.def.r-16,'Summon!','#ff9f43',13);
+      }
+    }
+    if(e.bossPowers.includes('shield')){
+      e.bossT2-=dt;
+      if(e.bossT2<=0&&e.shield<=0){
+        e.bossT2=10; e.maxShield=Math.round(e.maxHp*0.18); e.shield=e.maxShield; e.lastHit=g.t;
+        ring(e.pos.x,e.pos.y,46,'#6bc6e8'); floatText(e.pos.x,e.pos.y-e.def.r-16,'Shield up!','#6bc6e8',13);
+      }
+    }
+    if(e.bossPowers.includes('enrage')&&!e.enraged&&e.hp<e.maxHp*0.5){
+      e.enraged=true; ring(e.pos.x,e.pos.y,60,'#ff6b6b'); floatText(e.pos.x,e.pos.y-e.def.r-16,'ENRAGED!','#ff6b6b',15); g.shake=Math.max(g.shake,6);
+    }
+  }
   // poison damage-over-time (ignores armor)
   if(e.poisonT>0){
     e.poisonT-=dt;
     damageEnemy(e,e.poisonDps*dt,{src:e.poisonSrc,pierce:true});
     if(e.dead) return;
   }
-  // shield regen
-  if(e.maxShield&&e.shield<e.maxShield&&g.t-e.lastHit>2)
+  // shield regen (warden only — boss shields are set by its ability)
+  if(e.def.shieldRegen&&e.maxShield&&e.shield<e.maxShield&&g.t-e.lastHit>2)
     e.shield=Math.min(e.maxShield,e.shield+e.def.shieldRegen*hpMul(g.wave,g.diff.hp)*dt);
   // healer aura
   if(e.def.heal){
@@ -2091,6 +2173,15 @@ function drawEnemy(e){
       ctx.beginPath(); ctx.arc(Math.cos(a)*(r+6),Math.sin(a)*(r+6)*0.5-r*0.7,1.8,0,TAU); ctx.fill();
     }
   }
+  // enrage aura (boss)
+  if(e.enraged){
+    ctx.globalAlpha=0.25+Math.sin(g.t*8)*0.12;
+    ctx.fillStyle='#ff3b3b';
+    ctx.beginPath(); ctx.arc(0,0,r+7,0,TAU); ctx.fill();
+    ctx.globalAlpha=1;
+    ctx.strokeStyle='rgba(255,90,90,0.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,0,r+7,0,TAU); ctx.stroke();
+  }
   // shield arc
   if(e.shield>0){
     ctx.strokeStyle='rgba(107,228,255,0.85)'; ctx.lineWidth=2.5;
@@ -2653,6 +2744,11 @@ $('btnMute').addEventListener('click',()=>{
   $('btnMute').textContent=SFX.toggle()?'🔇':'🔊';
 });
 $('btnMute').textContent=SFX.muted?'🔇':'🔊';
+function refreshMusicBtn(){ $('btnMusic').textContent='🎵'; $('btnMusic').style.opacity=MUSIC.on?'1':'0.4'; }
+$('btnMusic').addEventListener('click',()=>{ SFX.ensure(); MUSIC.toggle(); refreshMusicBtn(); });
+refreshMusicBtn();
+// start the soundtrack on the first user gesture (browsers require it)
+document.addEventListener('pointerdown',()=>{ SFX.ensure(); MUSIC.start(); },{once:true});
 $('btnMenu').addEventListener('click',()=>{ showMenu(); });
 
 // ----- menu -----
@@ -3072,7 +3168,7 @@ $('tutNext').addEventListener('click',()=>{ if(tutIndex<TUT_STEPS.length-1){ tut
 //#endregion
 
 //#region ===== Loop =====
-let lastT=performance.now();
+let lastT=performance.now(), musicI=0.15;
 function frame(now){
   requestAnimationFrame(frame);
   const dt=clamp((now-lastT)/1000,0,0.05);
@@ -3085,6 +3181,16 @@ function frame(now){
   }
   draw();
   if(game) updateHUD();
+  // music intensity follows the action
+  if(MUSIC.on){
+    let ti=0.15;
+    if(game){
+      if(game.state==='play') ti = game.waveActive ? (game.enemies.some(e=>e.def.boss)?1.0:0.7) : 0.32;
+      else ti=0.12;
+    }
+    musicI += (ti-musicI)*Math.min(1,dt*1.5);
+    MUSIC.setIntensity(musicI);
+  }
 }
 requestAnimationFrame(frame);
 showMenu();
