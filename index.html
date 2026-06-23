@@ -209,6 +209,22 @@
   #wizNav{display:none; gap:10px; justify-content:center; margin:8px 0 2px;}
   #wizNav button{padding:9px 26px;}
 
+  /* Floating tower inspector (bottom sheet, mobile only) */
+  #towerPanel{
+    position:fixed; left:0; right:0; bottom:0; z-index:45;
+    background:linear-gradient(180deg,#1b2333,#11161f);
+    border-top:2px solid var(--accent); border-radius:16px 16px 0 0;
+    padding:14px 16px calc(16px + env(safe-area-inset-bottom,0px));
+    box-shadow:0 -12px 40px rgba(0,0,0,.6); max-height:62vh; overflow-y:auto;
+    animation:sheetUp .18s ease;
+  }
+  @keyframes sheetUp{from{transform:translateY(100%);}to{transform:translateY(0);}}
+  #towerPanel.hidden{display:none;}
+  #towerPanel #info, #towerPanelBody{min-height:0;}
+  #tpClose{position:absolute; top:9px; right:11px; width:32px; height:32px; padding:0;
+    border-radius:9px; font-size:15px; line-height:1; z-index:2;}
+  /* on phones the side field-guide panel is hidden while a tower sheet is open via JS */
+
   /* Menu sub-buttons */
   #menuBtns{display:flex; gap:10px; justify-content:center; margin-top:12px; flex-wrap:wrap;}
   #menuBtns button{padding:9px 18px; font-size:13px;}
@@ -311,6 +327,12 @@
       </div>
     </aside>
   </div>
+</div>
+
+<!-- floating tower inspector (mobile) -->
+<div id="towerPanel" class="hidden">
+  <button id="tpClose" title="Close">✕</button>
+  <div id="towerPanelBody"></div>
 </div>
 
 <!-- MAIN MENU -->
@@ -694,6 +716,15 @@ const TARGET_MODES=['first','last','strong','weak','close'];
 const TARGET_LABEL={first:'⤓ First',last:'⤒ Last',strong:'💪 Strongest',weak:'🩸 Weakest',close:'◎ Closest'};
 //#endregion
 
+//#region ===== Data: active abilities =====
+const ABILITIES=[
+  {key:'meteor',    name:'Meteor',     icon:'☄️', hotkey:'Q', cd:24, targeted:true,  radius:78, dmg:260, color:'#ff8a3c', desc:'Tap a spot — fiery blast damages & stuns all in range.'},
+  {key:'freeze',    name:'Time Freeze',icon:'❄️', hotkey:'W', cd:40, targeted:false, dur:3.5,    color:'#8fe8ff', desc:'Freezes the entire horde in place.'},
+  {key:'overdrive', name:'Overdrive',  icon:'⚡', hotkey:'E', cd:34, targeted:false, dur:6,      color:'#ffd34d', desc:'All towers fire 3× faster for a short burst.'},
+];
+const ABILITY_BY={}; for(const a of ABILITIES) ABILITY_BY[a.key]=a;
+//#endregion
+
 //#region ===== Data: enemies =====
 const ENEMIES={
   grunt:   {name:'Grunt',   hp:42,  spd:55, gold:6,  r:11, color:'#e2554f', shape:'circle'},
@@ -995,6 +1026,7 @@ function newGame(mapIdx,diffIdx){
     mouse:{x:-99,y:-99,inside:false},
     announce:null,
     stats:{},
+    abilityCd:{meteor:0,freeze:0,overdrive:0}, aiming:null, overdriveT:0,
   };
   renderTerrain();
   updateShopLocks();
@@ -1106,7 +1138,7 @@ function effStats(t){
   const mb=META.bonus;
   return {
     dmg:(lv.dmg||0)*(1+t.buffDmg)*(1+mb.dmgMul),
-    rate:(lv.rate||0)*(1+t.buffRate)*(1+mb.rateMul),
+    rate:(lv.rate||0)*(1+t.buffRate)*(1+mb.rateMul)*(game.overdriveT>0?3:1),
     range:(lv.range||0)*(1+t.buffRange)*(1+mb.rangeMul),
     splash:lv.splash, slow:lv.slow, slowDur:lv.slowDur, chain:lv.chain,
     crit:lv.crit, stun:lv.stun, freeze:lv.freeze, twin:lv.twin,
@@ -1379,11 +1411,86 @@ function floatText(x,y,txt,color,size=12){
 }
 //#endregion
 
+//#region ===== Active abilities =====
+function abilityButtonRects(){
+  // a centered row of round buttons along the bottom of the canvas
+  const n=ABILITIES.length, R=34, gap=22, total=n*(R*2)+(n-1)*gap;
+  let x=W/2-total/2+R, y=H-R-12;
+  return ABILITIES.map(a=>{ const rect={key:a,x,y,r:R}; x+=R*2+gap; return rect; });
+}
+function abilityAt(px,py){
+  for(const b of abilityButtonRects()){ if(dist2(px,py,b.x,b.y)<=(b.r+16)*(b.r+16)) return b.key; }
+  return null;
+}
+function tapAbility(key){
+  const g=game, a=ABILITY_BY[key];
+  if(!a||g.abilityCd[key]>0){ SFX.play('error'); return; }
+  if(a.targeted){ g.aiming=(g.aiming===key)?null:key; g.buildType=null; updateShopSel(); }
+  else castAbility(key);
+}
+function castAbility(key,tx,ty){
+  const g=game, a=ABILITY_BY[key];
+  if(g.abilityCd[key]>0) return;
+  g.abilityCd[key]=a.cd; g.aiming=null;
+  if(key==='meteor'){
+    const rr=a.radius*a.radius;
+    for(const e of g.enemies){
+      if(e.dead) continue;
+      if(dist2(tx,ty,e.pos.x,e.pos.y)<=rr){ damageEnemy(e,a.dmg,{src:null,pierce:true}); e.stunT=Math.max(e.stunT,1.1); }
+    }
+    for(let i=0;i<34;i++) burst(tx,ty,1,i%2?'#ff8a3c':'#ffd34d',4.5);
+    ring(tx,ty,a.radius,'#ff8a3c'); ring(tx,ty,a.radius*0.6,'#ffd34d');
+    g.shake=Math.max(g.shake,12);
+    SFX.play('cannon'); SFX.play('boss');
+  } else if(key==='freeze'){
+    for(const e of g.enemies){ if(!e.dead) e.stunT=Math.max(e.stunT,a.dur); }
+    ring(W/2,H/2,Math.max(W,H),'#8fe8ff');
+    g.announce={text:'❄ TIME FROZEN ❄',sub:'',life:1.4,max:1.4};
+    SFX.play('freeze');
+  } else if(key==='overdrive'){
+    g.overdriveT=a.dur;
+    for(const t of g.towers) t.flash=1;
+    g.announce={text:'⚡ OVERDRIVE ⚡',sub:'',life:1.4,max:1.4};
+    SFX.play('upgrade');
+  }
+}
+function updateAbilities(dt){
+  const g=game;
+  for(const k in g.abilityCd) if(g.abilityCd[k]>0) g.abilityCd[k]=Math.max(0,g.abilityCd[k]-dt);
+  if(g.overdriveT>0) g.overdriveT=Math.max(0,g.overdriveT-dt);
+}
+function drawAbilityBar(){
+  const g=game;
+  for(const b of abilityButtonRects()){
+    const a=b.key, cd=g.abilityCd[a.key], ready=cd<=0;
+    ctx.save();
+    ctx.fillStyle=ready?'rgba(20,26,38,0.92)':'rgba(10,13,20,0.92)';
+    ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,TAU); ctx.fill();
+    ctx.lineWidth=2.5; ctx.strokeStyle=g.aiming===a.key?'#ffffff':(ready?a.color:'#3a4054'); ctx.stroke();
+    ctx.globalAlpha=ready?1:0.4;
+    ctx.font='28px "Segoe UI Emoji","Apple Color Emoji",serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(a.icon,b.x,b.y+1);
+    ctx.globalAlpha=1;
+    if(!ready){
+      ctx.fillStyle='rgba(0,0,0,0.62)';
+      ctx.beginPath(); ctx.moveTo(b.x,b.y); ctx.arc(b.x,b.y,b.r,-Math.PI/2,-Math.PI/2+TAU*(cd/a.cd),false); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.font='700 18px Segoe UI'; ctx.fillText(Math.ceil(cd),b.x,b.y+1);
+    } else if(g.aiming===a.key){
+      ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(b.x,b.y,b.r+4+Math.sin(g.t*8)*1.5,0,TAU); ctx.stroke();
+    }
+    ctx.fillStyle=ready?a.color:'#5a6378'; ctx.font='700 11px Segoe UI'; ctx.textBaseline='alphabetic';
+    ctx.fillText(a.hotkey,b.x,b.y+b.r-5);
+    ctx.restore();
+  }
+}
+//#endregion
+
 //#region ===== Main update =====
 function update(dt){
   const g=game;
   g.t+=dt;
   g.shake=Math.max(0,g.shake-dt*30);
+  updateAbilities(dt);
   if(g.announce){ g.announce.life-=dt; if(g.announce.life<=0)g.announce=null; }
   // wave countdown
   if(!g.waveActive&&g.nextTimer>0){
@@ -2140,6 +2247,19 @@ function draw(){
     ctx.fillText('⚔ WARLORD ⚔',W/2,26);
   }
 
+  // meteor aiming reticle
+  if(g.aiming==='meteor'&&g.mouse.inside){
+    const a=ABILITY_BY.meteor, mx=g.mouse.x, my=g.mouse.y;
+    ctx.globalAlpha=0.18; ctx.fillStyle='#ff8a3c';
+    ctx.beginPath(); ctx.arc(mx,my,a.radius,0,TAU); ctx.fill();
+    ctx.globalAlpha=0.8; ctx.strokeStyle='#ff8a3c'; ctx.lineWidth=2; ctx.setLineDash([7,6]);
+    ctx.beginPath(); ctx.arc(mx,my,a.radius,0,TAU); ctx.stroke(); ctx.setLineDash([]);
+    ctx.beginPath(); ctx.moveTo(mx-12,my); ctx.lineTo(mx+12,my); ctx.moveTo(mx,my-12); ctx.lineTo(mx,my+12); ctx.stroke();
+    ctx.globalAlpha=1;
+  }
+  // ability bar
+  drawAbilityBar();
+
   // announce
   if(g.announce){
     const a=g.announce;
@@ -2200,6 +2320,9 @@ cv.addEventListener('mousedown',ev=>{
   SFX.ensure();
   if(ev.button===2) return;
   const p=canvasPos(ev);
+  const ab=abilityAt(p.x,p.y);
+  if(ab){ tapAbility(ab); return; }
+  if(game.aiming){ castAbility(game.aiming,p.x,p.y); return; }
   const c=Math.floor(p.x/TILE),r=Math.floor(p.y/TILE);
   if(game.buildType){
     if(isBuildable(c,r)){
@@ -2223,12 +2346,15 @@ window.addEventListener('keydown',ev=>{
   if(!game||game.state!=='play') return;
   if(ev.key>='1'&&ev.key<='8'){ setBuild(TOWER_ORDER[+ev.key-1]); return; }
   switch(ev.key){
-    case 'Escape': setBuild(null); game.selected=null; updateInfoPanel(); break;
+    case 'Escape': setBuild(null); game.aiming=null; game.selected=null; updateInfoPanel(); break;
     case ' ': ev.preventDefault(); togglePause(); break;
     case 'f': case 'F': cycleSpeed(); break;
     case 'n': case 'N': if(!game.waveActive) startWave(true); break;
     case 'u': case 'U': if(game.selected) upgradeTower(game.selected); break;
     case 'x': case 'X': if(game.selected) sellTower(game.selected); break;
+    case 'q': case 'Q': tapAbility('meteor'); break;
+    case 'w': case 'W': tapAbility('freeze'); break;
+    case 'e': case 'E': tapAbility('overdrive'); break;
   }
 });
 window.addEventListener('blur',()=>{ if(game&&game.state==='play'&&!game.paused) togglePause(); });
@@ -2241,6 +2367,9 @@ cv.addEventListener('touchstart',ev=>{
   const tch=ev.changedTouches[0];
   const p=canvasPos(tch);
   game.mouse.x=p.x; game.mouse.y=p.y; game.mouse.inside=true;
+  const ab=abilityAt(p.x,p.y);
+  if(ab){ tapAbility(ab); return; }
+  if(game.aiming){ castAbility(game.aiming,p.x,p.y); return; }
   const c=Math.floor(p.x/TILE), r=Math.floor(p.y/TILE);
   if(game.buildType){
     if(isBuildable(c,r)){
@@ -2374,10 +2503,15 @@ function statRows(def,lv,nextLv){
   if(lv.note) rows.push('<div class="srow"><span class="k">★</span><span style="color:var(--gold)">'+lv.note+'</span></div>');
   return rows.join('');
 }
+function guideHTML(){
+  return '<h3>Field guide</h3><div class="desc">Select a tower to build (keys 1–8), or tap a placed tower to upgrade it, sell it, or change its targeting.</div>'+
+    '<div class="srow"><span class="k">💡 Tip</span><span style="text-align:right">'+TIPS[tipIdx%TIPS.length]+'</span></div>';
+}
 function updateInfoPanel(){
-  const el=$('info');
-  if(!game){ el.innerHTML=''; return; }
+  const el=$('info'), tp=$('towerPanel');
+  if(!game){ el.innerHTML=''; if(tp) tp.classList.add('hidden'); return; }
   const shopKey=uiHoverShop||game.buildType;
+  const mobile=(typeof isMobileMenu==='function')&&isMobileMenu();
   if(game.selected){
     const t=game.selected, def=t.def, lv=def.levels[t.lvl];
     const next=def.levels[t.lvl+1];
@@ -2387,15 +2521,17 @@ function updateInfoPanel(){
     html+='<div class="srow"><span class="k">Kills / Damage</span><span>'+t.kills+' / '+fmt(t.dmgDone)+'</span></div>';
     if(t.buffDmg>0) html+='<div class="srow"><span class="k">Beacon buff</span><span style="color:var(--green)">+'+Math.round(t.buffDmg*100)+'% dmg</span></div>';
     html+='<div class="btnrow">';
-    if(def.aura!==true||true){
-      html+='<button id="btnTarget" class="grow" '+(def.aura?'disabled':'')+'>'+TARGET_LABEL[t.mode]+'</button>';
-    }
+    html+='<button id="btnTarget" class="grow" '+(def.aura?'disabled':'')+'>'+TARGET_LABEL[t.mode]+'</button>';
     html+='</div><div class="btnrow">';
     if(next) html+='<button id="btnUp" class="primary grow" '+(game.gold<next.cost?'disabled':'')+'>⬆ Upgrade 🪙'+next.cost+'</button>';
     else html+='<button class="grow" disabled>★ Max level</button>';
     html+='<button id="btnSell" class="danger">Sell 🪙'+Math.floor(t.invested*sellRate())+'</button>';
     html+='</div>';
-    el.innerHTML=html;
+    // on phones the controls float over the canvas as a bottom sheet
+    const target = mobile ? $('towerPanelBody') : el;
+    target.innerHTML=html;
+    if(mobile){ tp.classList.remove('hidden'); el.innerHTML=guideHTML(); }
+    else if(tp){ tp.classList.add('hidden'); }
     const bU=$('btnUp'); if(bU) bU.onclick=()=>upgradeTower(t);
     $('btnSell').onclick=()=>sellTower(t);
     const bT=$('btnTarget');
@@ -2404,13 +2540,14 @@ function updateInfoPanel(){
       updateInfoPanel();
     };
   } else if(shopKey){
+    if(tp) tp.classList.add('hidden');
     const def=TOWERS[shopKey], lv=def.levels[0];
     el.innerHTML='<h3>'+def.name+' <span class="lv">🪙'+lv.cost+'</span></h3>'+
       '<div class="desc">'+def.desc+'</div>'+statRows(def,lv,def.levels[1])+
-      '<div class="desc" style="margin-top:8px;">Click a tile to build · Shift-click to build several · Right-click to cancel.</div>';
+      '<div class="desc" style="margin-top:8px;">Tap a tile to build · Shift-click for several · Right-click / Esc to cancel.</div>';
   } else {
-    el.innerHTML='<h3>Field guide</h3><div class="desc">Select a tower to build (keys 1–6), or click a placed tower to upgrade it, sell it, or change its targeting.</div>'+
-      '<div class="srow"><span class="k">💡 Tip</span><span style="text-align:right">'+TIPS[tipIdx%TIPS.length]+'</span></div>';
+    if(tp) tp.classList.add('hidden');
+    el.innerHTML=guideHTML();
   }
 }
 const TIPS=[
@@ -2425,6 +2562,8 @@ const TIPS=[
 ];
 let tipIdx=Math.floor(Math.random()*TIPS.length);
 setInterval(()=>{ tipIdx++; if(game&&!game.selected&&!uiHoverShop&&!game.buildType) updateInfoPanel(); },6000);
+// close the floating tower inspector
+$('tpClose').addEventListener('click',()=>{ if(game){ game.selected=null; updateInfoPanel(); } });
 
 const E_PRETTY={grunt:'Grunt',runner:'Runner',tank:'Tank',flyer:'Flyer',healer:'Healer',splitter:'Splitter',mini:'Mite',shieldy:'Warden',boss:'WARLORD'};
 function updatePreviewUI(){
@@ -2541,9 +2680,10 @@ function renderWizard(){
   if(isMobileMenu()){
     wizStep=clamp(wizStep,0,steps.length-1);
     steps.forEach(s=>{ s.style.display=(+s.dataset.step===wizStep)?'':'none'; });
-    nav.style.display='flex';
-    $('wizBack').style.visibility=wizStep>0?'visible':'hidden';
-    $('wizNext').style.display=wizStep<steps.length-1?'':'none';
+    // selecting a map/difficulty auto-advances, so no Next button on mobile
+    $('wizNext').style.display='none';
+    nav.style.display=wizStep>0?'flex':'none';
+    $('wizBack').style.visibility='visible';
     start.style.display=wizStep===steps.length-1?'':'none';
   } else {
     steps.forEach(s=>{ s.style.display=''; });
@@ -2553,7 +2693,10 @@ function renderWizard(){
 }
 $('wizNext').addEventListener('click',()=>{ SFX.ensure(); wizStep++; renderWizard(); });
 $('wizBack').addEventListener('click',()=>{ wizStep--; renderWizard(); });
-window.addEventListener('resize',()=>{ if(!$('menu').classList.contains('hidden')) renderWizard(); });
+window.addEventListener('resize',()=>{
+  if(!$('menu').classList.contains('hidden')) renderWizard();
+  if(game&&game.state==='play') updateInfoPanel();
+});
 const mapCardsEl=$('mapCards');
 function drawMiniMap(mc,m){
   const sx=188/W, sy=132/H;
@@ -2583,6 +2726,7 @@ function renderMapCards(){
     card.addEventListener('click',()=>{
       menuMap=i;
       [...mapCardsEl.children].forEach((el,j)=>el.classList.toggle('sel',j===i));
+      if(isMobileMenu()){ wizStep=1; renderWizard(); }   // auto-advance to difficulty
     });
     mapCardsEl.appendChild(card);
     drawMiniMap(card.querySelector('canvas').getContext('2d'),m);
@@ -2604,6 +2748,7 @@ DIFFS.forEach((d,i)=>{
   b.addEventListener('click',()=>{
     menuDiff=i;
     [...diffRow.children].forEach((el,j)=>el.classList.toggle('sel',j===i));
+    if(isMobileMenu()){ wizStep=2; renderWizard(); }   // auto-advance to faction
   });
   diffRow.appendChild(b);
 });
