@@ -10,12 +10,14 @@
     "serve": "npx --yes serve www -l 4321",
     "sync": "npm run build && npx cap sync",
     "add:ios": "npm run build && npx cap add ios && npx cap sync ios",
-    "add:android": "npm run build && npx cap add android && npx cap sync android",
+    "add:android": "npm run build && npx cap add android && npx cap sync android && node tools/patch-android-admob.mjs",
+    "patch:admob": "node tools/patch-android-admob.mjs",
     "open:ios": "npx cap open ios",
     "open:android": "npx cap open android",
     "assets": "npx --yes @capacitor/assets generate --iconBackgroundColor '#0b0e16' --iconBackgroundColorDark '#0b0e16' --splashBackgroundColor '#0b0e16' --splashBackgroundColorDark '#0b0e16'"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^6.2.0",
     "@capacitor/android": "^6.1.2",
     "@capacitor/core": "^6.1.2",
     "@capacitor/ios": "^6.1.2"

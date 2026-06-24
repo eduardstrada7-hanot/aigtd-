@@ -1,14 +1,29 @@
 # Privacy Policy — Bastion: Tower Defense
 
-_Last updated: 2026-06-19_
+_Last updated: 2026-06-23_
 
-Bastion is a single-player game that runs entirely on your device.
+Bastion is a single-player game that runs on your device.
 
 ## Data we collect
 
-**None.** Bastion does not collect, transmit, sell, or share any personal
-information. There are no accounts, no analytics, no advertising SDKs, and no
-network requests to our servers — the game has no servers.
+**We (the developer) do not collect, sell, or share any personal information.**
+There are no accounts, no logins, and no servers run by us.
+
+## Advertising
+
+Bastion shows optional **rewarded video ads** — ads you choose to watch in
+exchange for an in-game bonus — through **Google AdMob**. To serve and measure
+ads, Google/AdMob may collect and process certain data, including:
+
+- device and advertising identifiers (e.g. the Google Advertising ID),
+- coarse location and IP address,
+- app/device information and ad-interaction data.
+
+This is processed by Google, not by us. See how Google uses this data at
+https://policies.google.com/technologies/partner-sites . You can reset or limit
+ad personalization in your device settings (Android: Settings → Google → Ads;
+iOS: Settings → Privacy → Tracking). On iOS the app asks for tracking permission,
+which you may decline.
 
 ## Data stored on your device
 
@@ -31,7 +46,8 @@ anyone, including children under 13.
 
 ## Third parties
 
-Bastion includes no third-party advertising, tracking, or analytics services.
+Bastion uses **Google AdMob** to display ads (see "Advertising" above). It uses
+no other third-party tracking or analytics services.
 
 ## Changes
 

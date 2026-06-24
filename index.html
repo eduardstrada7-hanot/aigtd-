@@ -3351,5 +3351,45 @@ showMenu();
   }
 })();
 </script>
+<script>
+/* =========================================================================
+   AdMob bridge (native Android/iOS only via @capacitor-community/admob).
+   The game's ADS.showRewarded() looks for window.BastionNativeAds.showRewarded;
+   this defines it. On the web build nothing here runs, so the demo ad shows.
+   ========================================================================= */
+(function(){
+  const ADMOB = {
+    // ⚠️ TEST MODE: keep true while developing (shows Google's test ads, safe to tap).
+    //    Set to false ONLY for the production release you upload to the store.
+    test: true,
+    appId:        'ca-app-pub-7841019476165936~3167681826',          // your AdMob App ID (also goes in AndroidManifest)
+    rewarded:     'ca-app-pub-7841019476165936/3607499674',          // your real rewarded ad unit
+    testRewarded: 'ca-app-pub-3940256099942544/5224354917',          // Google's official Android test rewarded unit
+  };
+  const Cap = window.Capacitor;
+  if(!Cap || !Cap.isNativePlatform || !Cap.isNativePlatform()) return;   // web build → use in-game demo ad
+  const AdMob = Cap.Plugins && Cap.Plugins.AdMob;
+  if(!AdMob) return;
+
+  async function showRewarded(placement){
+    const adId = ADMOB.test ? ADMOB.testRewarded : ADMOB.rewarded;
+    let earned=false; const handles=[];
+    try{
+      handles.push(await AdMob.addListener('onRewardedVideoAdReward', ()=>{ earned=true; }));
+      await AdMob.prepareRewardVideoAd({ adId, isTesting: ADMOB.test });
+      await AdMob.showRewardVideoAd();
+    }catch(e){ earned=false; }   // failed to load/show → no reward
+    finally{ for(const h of handles){ try{ await h.remove(); }catch(e){} } }
+    return earned;
+  }
+
+  (async function init(){
+    try{
+      await AdMob.initialize({ initializeForTesting: ADMOB.test, requestTrackingAuthorization: true });
+      window.BastionNativeAds = { showRewarded };
+    }catch(e){ console.warn('[AdMob] init failed', e); }
+  })();
+})();
+</script>
 </body>
 </html>
