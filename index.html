@@ -721,7 +721,7 @@ function posAtDist(path,d){
 //#endregion
 
 //#region ===== Data: towers =====
-const TOWER_ORDER=['gunner','cannon','frost','tesla','sniper','support','venom','mint'];
+const TOWER_ORDER=['gunner','cannon','frost','tesla','sniper','support','venom','mint','laser'];
 const TOWERS={
   gunner:{name:'Gunner',icon:'gun',color:'#9db8ff',hitsAir:true,
     desc:'Rapid single-target fire. Cheap, reliable backbone.',
@@ -786,6 +786,14 @@ const TOWERS={
       {cost:110,range:0, rate:0.28, gold:28},
       {cost:175,range:0, rate:0.32, gold:46},
       {cost:265,range:0, rate:0.38, gold:74, note:'Treasury — a fountain of gold'},
+    ]},
+  laser:{name:'Laser',icon:'laser',color:'#ff5da2',hitsAir:true,beam:true,locked:'laser',
+    desc:'Continuous beam that ramps up damage the longer it locks one target. Melts bosses. 🔒 Research to unlock.',
+    levels:[
+      {cost:170,dmg:34, rate:1, range:150, charge:1.6, ramp:1.6},
+      {cost:150,dmg:56, rate:1, range:160, charge:1.5, ramp:1.8},
+      {cost:220,dmg:92, rate:1, range:170, charge:1.4, ramp:2.0},
+      {cost:340,dmg:150,rate:1, range:185, charge:1.1, ramp:2.6, note:'Overload — charges faster, melts anything'},
     ]},
 };
 const TARGET_MODES=['first','last','strong','weak','close'];
@@ -879,7 +887,7 @@ function waveSummary(list){
   for(const g of list) m.set(g.type,(m.get(g.type)||0)+g.count);
   return [...m.entries()];
 }
-function hpMul(w,diffMul){ return Math.pow(1.105,w-1)*diffMul; }
+function hpMul(w,diffMul){ return Math.pow(1.112,w-1)*diffMul; }
 //#endregion
 
 //#region ===== Meta: research tree =====
@@ -900,6 +908,7 @@ const RESEARCH=[
   // tower unlocks
   {id:'unlockVenom', tier:1, name:'Toxicology',  desc:'🔓 Unlocks the VENOM tower — poison damage-over-time that ignores armor', cost:5, req:['pow1'], effect:{}, unlocks:'venom'},
   {id:'unlockMint',  tier:2, name:'Royal Mint',  desc:'🔓 Unlocks the MINT tower — generates bonus gold every few seconds',     cost:6, req:['eco2'], effect:{}, unlocks:'mint'},
+  {id:'unlockLaser', tier:2, name:'Photonics',   desc:'🔓 Unlocks the LASER tower — a beam that ramps up damage and melts bosses', cost:8, req:['pow2'], effect:{}, unlocks:'laser'},
   // tier 4 capstones
   {id:'cap1', tier:3, name:'Master Engineers',desc:'+20% damage & +10% range',      cost:9, req:['pow3','pow4'],effect:{dmgMul:0.20, rangeMul:0.10}},
   {id:'cap2', tier:3, name:'Golden Age',     desc:'+35% start gold & +5% interest',cost:9, req:['eco3'],      effect:{startGold:0.35, interestRate:0.05}},
@@ -1072,9 +1081,10 @@ const SKINS=(()=>{
 
 //#region ===== Game state =====
 const DIFFS=[
-  {key:'easy',  name:'Easy',  hp:0.82, gold:280, lives:25, rp:0.8},
-  {key:'normal',name:'Normal',hp:1.0,  gold:220, lives:20, rp:1.0},
-  {key:'hard',  name:'Hard',  hp:1.25, gold:180, lives:12, rp:1.35},
+  {key:'easy',     name:'Easy',     hp:0.82, gold:280, lives:25, rp:0.8},
+  {key:'normal',   name:'Normal',   hp:1.0,  gold:220, lives:20, rp:1.0},
+  {key:'hard',     name:'Hard',     hp:1.25, gold:180, lives:12, rp:1.35},
+  {key:'nightmare',name:'Nightmare',hp:1.6,  gold:160, lives:8,  rp:1.8},
 ];
 let menuMap=0, menuDiff=1;
 let menuSkin=(()=>{ const s=localStorage.getItem('td_skin'); return (s&&SKIN_ORDER.includes(s))?s:'classic'; })();
@@ -1239,7 +1249,7 @@ function effStats(t){
     crit:lv.crit, stun:lv.stun, freeze:lv.freeze, twin:lv.twin,
     buffDmg:lv.buffDmg, buffRange:lv.buffRange, buffRate:lv.buffRate,
     poison:(lv.poison||0)*(1+mb.dmgMul), poisonDur:lv.poisonDur, spread:lv.spread,
-    gold:lv.gold,
+    gold:lv.gold, charge:lv.charge, ramp:lv.ramp,
   };
 }
 function recomputeBuffs(){
@@ -1335,6 +1345,29 @@ function updateTower(t,dt){
     return;
   }
   if(t.kind==='support') return;
+  if(t.kind==='laser'){
+    const tgt=pickTarget(t,eff);
+    t.target=tgt;
+    if(tgt){
+      // aim
+      const want=Math.atan2(tgt.pos.y-t.y,tgt.pos.x-t.x);
+      let d=want-t.angle; while(d>Math.PI)d-=TAU; while(d<-Math.PI)d+=TAU;
+      t.angle+=clamp(d,-14*dt,14*dt);
+      // heat ramps while locked on the same target, resets on switch
+      if(tgt===t.lastTarget) t.heat=Math.min(1,(t.heat||0)+dt/Math.max(0.1,eff.charge));
+      else { t.heat=0; t.lastTarget=tgt; }
+      const dps=eff.dmg*(1+(t.heat||0)*eff.ramp);
+      damageEnemy(tgt,dps*dt,{src:t,pierce:true});   // energy beam ignores armor (and avoids per-tick armor clamping)
+      // glowing beam (one short-lived segment per frame; reuses additive glow)
+      const mx=t.x+Math.cos(t.angle)*16, my=t.y+Math.sin(t.angle)*16;
+      const hot=t.heat||0, life=Math.max(0.03,dt*1.6);
+      game.beams.push({pts:[{x:mx,y:my},{x:tgt.pos.x,y:tgt.pos.y}], color:hot>0.66?'#ff3b6e':'#ff5da2', w:2+hot*5, life, max:life});
+      if(hot>0.5){ for(let i=0;i<2;i++) burst(tgt.pos.x,tgt.pos.y,1,'#ff8ac0',1.6); }
+      t.flash=1;
+      if(t.cd<=0){ SFX.play('shoot'); t.cd=0.25; }
+    } else { t.heat=Math.max(0,(t.heat||0)-dt*2); t.lastTarget=null; }
+    return;
+  }
   if(t.kind==='frost'){
     if(t.cd<=0){
       let hit=false;
@@ -1724,7 +1757,7 @@ function endGame(win){
   META.award(gained);
   if(win){
     ACH.unlock('win');
-    if(g.diff.key==='hard') ACH.unlock('hard');
+    if(g.diff.key==='hard'||g.diff.key==='nightmare') ACH.unlock('hard');
     if(!g.lostLife) ACH.unlock('flawless');
   }
   document.getElementById('endTitle').textContent=win?'🏆 VICTORY':'💀 THE KEEP HAS FALLEN';
@@ -1918,6 +1951,17 @@ function drawTurret(x,y,kind,lvl,angle,recoil,opts={}){
       const tt=opts.time||0;
       ctx.fillStyle='#cdff7a';
       for(let i=0;i<3;i++){ ctx.globalAlpha=0.45+0.4*Math.sin(tt*5+i); ctx.beginPath(); ctx.arc(-4+i*4,-1.5,1.3,0,TAU); ctx.fill(); }
+      ctx.globalAlpha=1;
+      break;
+    }
+    case 'laser':{
+      ctx.fillStyle='#3a2a3a'; ctx.fillRect(rec,-4,16,8);
+      ctx.fillStyle=def.color; ctx.fillRect(rec+6,-5.5,3,11); ctx.fillRect(rec+11,-4.5,2.5,9);
+      ctx.fillStyle='#ff9ac8'; ctx.beginPath(); ctx.arc(17,0,3.4,0,TAU); ctx.fill();
+      ctx.fillStyle='#33415c'; ctx.beginPath(); ctx.arc(0,0,8.5*k,0,TAU); ctx.fill();
+      ctx.fillStyle=def.color; ctx.beginPath(); ctx.arc(0,0,4*k,0,TAU); ctx.fill();
+      const tt=opts.time||0; ctx.globalAlpha=0.5+0.4*Math.sin(tt*8);
+      ctx.fillStyle='#ffd0e6'; ctx.beginPath(); ctx.arc(0,0,2.5,0,TAU); ctx.fill();
       ctx.globalAlpha=1;
       break;
     }
@@ -2490,7 +2534,7 @@ cv.addEventListener('contextmenu',ev=>{
 });
 window.addEventListener('keydown',ev=>{
   if(!game||game.state!=='play') return;
-  if(ev.key>='1'&&ev.key<='8'){ setBuild(TOWER_ORDER[+ev.key-1]); return; }
+  if(ev.key>='1'&&ev.key<='9'){ setBuild(TOWER_ORDER[+ev.key-1]); return; }
   switch(ev.key){
     case 'Escape': setBuild(null); game.aiming=null; game.selected=null; updateInfoPanel(); break;
     case ' ': ev.preventDefault(); togglePause(); break;
@@ -2633,6 +2677,10 @@ function drawIconInto(c2,key){
         for(let i=2;i>=0;i--){ c2.fillStyle=i%2?'#e0b53a':def.color; c2.strokeStyle='#7a5e12'; c2.lineWidth=1.2;
           c2.beginPath(); c2.ellipse(0,3-i*4,8,4,0,0,TAU); c2.fill(); c2.stroke(); }
         c2.fillStyle='#7a5e12'; c2.font='700 9px Segoe UI'; c2.textAlign='center'; c2.textBaseline='middle'; c2.fillText('$',0,-5); break;
+      case 'laser':
+        c2.rotate(-Math.PI/2); c2.fillStyle='#3a2a3a'; c2.fillRect(0,-3,14,6);
+        c2.fillStyle=def.color; c2.fillRect(6,-4.5,3,9); c2.beginPath(); c2.arc(14,0,3,0,TAU); c2.fill();
+        c2.fillStyle='#ff9ac8'; c2.beginPath(); c2.arc(0,0,4.5,0,TAU); c2.fill(); break;
     }
     c2.restore();
   } finally { window.ctxSwap=false; }
@@ -2652,13 +2700,21 @@ function statRows(def,lv,nextLv){
       d='<span class="delta">→ '+(fix?nextLv[key].toFixed(1):nextLv[key])+'</span>';
     rows.push('<div class="srow"><span class="k">'+k+'</span><span>'+v+d+'</span></div>');
   };
-  push('Damage','dmg');
-  if(lv.gold) rows.push('<div class="srow"><span class="k">Gold / cycle</span><span style="color:var(--gold)">🪙'+lv.gold+(nextLv&&nextLv.gold?'<span class="delta">→ '+nextLv.gold+'</span>':'')+'</span></div>');
-  if(lv.gold) rows.push('<div class="srow"><span class="k">Every</span><span>'+(1/lv.rate).toFixed(1)+'s</span></div>');
-  if(!def.gen){ push('Fire rate','rate',true); push('Range','range'); }
+  if(def.beam){
+    rows.push('<div class="srow"><span class="k">Beam DPS</span><span>'+lv.dmg+(nextLv&&nextLv.dmg?'<span class="delta">→ '+nextLv.dmg+'</span>':'')+'</span></div>');
+    push('Range','range');
+    rows.push('<div class="srow"><span class="k">Heat ramp</span><span style="color:#ff8ac0">up to ×'+(1+lv.ramp).toFixed(1)+' DPS</span></div>');
+    rows.push('<div class="srow"><span class="k">Special</span><span>Ignores armor</span></div>');
+    rows.push('<div class="srow"><span class="k">★</span><span style="color:var(--gold)">Ramps up while locked on a target</span></div>');
+  } else {
+    push('Damage','dmg');
+    if(lv.gold) rows.push('<div class="srow"><span class="k">Gold / cycle</span><span style="color:var(--gold)">🪙'+lv.gold+(nextLv&&nextLv.gold?'<span class="delta">→ '+nextLv.gold+'</span>':'')+'</span></div>');
+    if(lv.gold) rows.push('<div class="srow"><span class="k">Every</span><span>'+(1/lv.rate).toFixed(1)+'s</span></div>');
+    if(!def.gen){ push('Fire rate','rate',true); push('Range','range'); }
+  }
   if(lv.poison) rows.push('<div class="srow"><span class="k">Poison/sec</span><span style="color:#a6e22e">'+lv.poison+(nextLv&&nextLv.poison?'<span class="delta">→ '+nextLv.poison+'</span>':'')+'</span></div>');
   if(lv.poisonDur) rows.push('<div class="srow"><span class="k">Toxin lasts</span><span>'+lv.poisonDur+'s</span></div>');
-  if(def.locked&&!def.gen) rows.push('<div class="srow"><span class="k">Special</span><span>Ignores armor</span></div>');
+  if(lv.poison) rows.push('<div class="srow"><span class="k">Special</span><span>Ignores armor</span></div>');
   if(lv.splash) push('Splash','splash');
   if(lv.slow) rows.push('<div class="srow"><span class="k">Slow</span><span>'+Math.round(lv.slow*100)+'%'+(nextLv&&nextLv.slow?'<span class="delta">→ '+Math.round(nextLv.slow*100)+'%</span>':'')+'</span></div>');
   if(lv.chain) push('Chain hits','chain');
