@@ -36,8 +36,12 @@
   header.bar h1{font-size:22px; letter-spacing:2px; color:var(--gold); text-shadow:0 0 18px rgba(255,200,87,.35); font-weight:800;}
   header.bar .sub{color:var(--dim); font-size:12px; letter-spacing:1px;}
 
-  #layout{display:flex; gap:12px; width:100%; max-width:1290px; align-items:stretch;}
-  #canvasWrap{position:relative; flex:1 1 auto; min-width:0;}
+  #layout{display:grid; gap:12px; width:100%; max-width:1290px; align-items:start;
+    grid-template-columns:minmax(0,1fr) 300px; grid-template-areas:"top side" "map side";}
+  #topbar{grid-area:top; display:flex; gap:12px; align-items:start;}
+  #topbar #hud{flex:1.5 1 0;}
+  #topbar #waveBox{flex:1 1 0;}
+  #canvasWrap{grid-area:map; position:relative; min-width:0;}
   canvas#game{
     width:100%; display:block; border-radius:10px; touch-action:none;
     border:1px solid var(--edge);
@@ -45,19 +49,32 @@
     background:#10131c;
   }
   #side{
-    width:300px; flex:0 0 300px; display:flex; flex-direction:column; gap:10px;
+    grid-area:side; width:300px; display:flex; flex-direction:column; gap:10px;
   }
   .panel{
     background:linear-gradient(180deg, var(--panel2), var(--panel));
     border:1px solid var(--edge); border-radius:10px; padding:10px;
   }
   /* HUD */
-  #hud{display:grid; grid-template-columns:1fr 1fr; gap:6px;}
+  #hud{display:grid; grid-template-columns:repeat(4,1fr); gap:6px; align-content:start;}
   .stat{display:flex; align-items:center; gap:8px; background:rgba(0,0,0,.22); border-radius:8px; padding:6px 9px;}
   .stat .ico{font-size:16px; width:20px; text-align:center;}
   .stat .v{font-weight:700; font-size:15px;}
   .stat .lbl{color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; display:block; line-height:1;}
   #vLives{color:var(--red);} #vGold{color:var(--gold);} #vWave{color:var(--accent);} #vKills{color:var(--green);}
+
+  /* Ability bar (tappable buttons) */
+  #abilityBar{display:flex; gap:8px; padding:8px;}
+  .abBtn{position:relative; flex:1 1 0; min-width:0; aspect-ratio:1/1; max-height:74px; border-radius:12px; padding:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; overflow:hidden;
+    background:rgba(0,0,0,.3); border:2px solid var(--edge); cursor:pointer; transition:transform .07s, border-color .1s;}
+  .abBtn .abIcon{font-size:23px; line-height:1;}
+  .abBtn .abHot{font-size:9px; color:var(--dim); letter-spacing:1px;}
+  .abBtn .abCd{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
+    font-weight:800; font-size:21px; color:#fff; background:rgba(0,0,0,.55);}
+  .abBtn.cooling .abCd{display:flex;}
+  .abBtn.ready:hover{transform:translateY(-1px);}
+  .abBtn.aiming{box-shadow:0 0 0 2px #fff inset;}
 
   /* Shop */
   #shop{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
@@ -260,7 +277,7 @@
   .badgeCustom{position:absolute; top:5px; left:5px; background:rgba(107,228,255,.85); color:#04222b; font-size:9px; font-weight:700; border-radius:4px; padding:1px 5px; z-index:2;}
 
   @media (max-width:1080px){
-    #layout{flex-direction:column;}
+    #layout{grid-template-columns:1fr; grid-template-areas:"top" "map" "side";}
     #side{width:100%; flex-direction:row; flex-wrap:wrap;}
     #side .panel{flex:1 1 260px;}
   }
@@ -280,14 +297,15 @@
     #howto{display:none;}
     /* in-game: one column, explicit stacking order */
     #layout{display:flex; flex-direction:column; gap:10px;}
-    #canvasWrap, #side{display:contents;}
-    #side .panel{flex:0 0 auto; width:100%;}
+    #topbar, #canvasWrap, #side{display:contents;}
+    #topbar .panel, #side .panel{flex:0 0 auto; width:100%;}
     canvas#game{order:2; flex:0 0 auto; width:100%;}
-    #hud{order:1;}        /* lives / gold / wave / kills */
-    #shopPanel{order:3;}  /* towers */
-    #waveBox{order:4;}    /* incoming wave */
-    #ctrl{order:5;}       /* pause · speed · mute · menu */
-    #info{order:6;}       /* field guide */
+    #hud{order:1; grid-template-columns:repeat(2,1fr);}  /* lives / gold / wave / kills */
+    #abilityBar{order:3;}  /* abilities — right under the map */
+    #shopPanel{order:4;}   /* towers */
+    #waveBox{order:5;}     /* incoming wave */
+    #ctrl{order:6;}        /* pause · speed · mute · menu */
+    #info{order:7;}        /* field guide */
   }
 </style>
 </head>
@@ -298,18 +316,13 @@
     <span class="sub">TOWER DEFENSE</span>
   </header>
   <div id="layout">
-    <div id="canvasWrap">
-      <canvas id="game" width="960" height="672"></canvas>
-    </div>
-    <aside id="side">
+    <div id="topbar">
       <div class="panel" id="hud">
         <div class="stat"><span class="ico">❤️</span><span><span class="lbl">Lives</span><span class="v" id="vLives">20</span></span></div>
         <div class="stat"><span class="ico">🪙</span><span><span class="lbl">Gold</span><span class="v" id="vGold">220</span></span></div>
         <div class="stat"><span class="ico">🌊</span><span><span class="lbl">Wave</span><span class="v" id="vWave">0/40</span></span></div>
         <div class="stat"><span class="ico">💀</span><span><span class="lbl">Kills</span><span class="v" id="vKills">0</span></span></div>
       </div>
-      <div class="panel" id="shopPanel"><div id="shop"></div></div>
-      <div class="panel" id="info"></div>
       <div class="panel" id="waveBox">
         <div class="title">Incoming Wave</div>
         <div id="wavePreview"></div>
@@ -319,6 +332,14 @@
           <input type="checkbox" id="chkAuto" checked> Auto-start next wave
         </label>
       </div>
+    </div>
+    <div id="canvasWrap">
+      <canvas id="game" width="960" height="672"></canvas>
+    </div>
+    <aside id="side">
+      <div class="panel" id="abilityBar"></div>
+      <div class="panel" id="shopPanel"><div id="shop"></div></div>
+      <div class="panel" id="info"></div>
       <div class="panel" id="ctrl">
         <button id="btnPause" title="Space">⏸</button>
         <button id="btnSpeed" title="F">▶ 1×</button>
@@ -767,6 +788,7 @@ const ABILITIES=[
   {key:'meteor',    name:'Meteor',     icon:'☄️', hotkey:'Q', cd:24, targeted:true,  radius:78, dmg:260, color:'#ff8a3c', desc:'Tap a spot — fiery blast damages & stuns all in range.'},
   {key:'freeze',    name:'Time Freeze',icon:'❄️', hotkey:'W', cd:40, targeted:false, dur:3.5,    color:'#8fe8ff', desc:'Freezes the entire horde in place.'},
   {key:'overdrive', name:'Overdrive',  icon:'⚡', hotkey:'E', cd:34, targeted:false, dur:6,      color:'#ffd34d', desc:'All towers fire 3× faster for a short burst.'},
+  {key:'tribute',   name:'Tribute',    icon:'💰', hotkey:'R', cd:40, targeted:false, gold:100,   color:'#ffc857', desc:'Collect 100 gold instantly (every 40s).'},
 ];
 const ABILITY_BY={}; for(const a of ABILITIES) ABILITY_BY[a.key]=a;
 //#endregion
@@ -1072,7 +1094,7 @@ function newGame(mapIdx,diffIdx){
     mouse:{x:-99,y:-99,inside:false},
     announce:null,
     stats:{},
-    abilityCd:{meteor:0,freeze:0,overdrive:0}, aiming:null, overdriveT:0,
+    abilityCd:Object.fromEntries(ABILITIES.map(a=>[a.key,0])), aiming:null, overdriveT:0,
   };
   renderTerrain();
   updateShopLocks();
@@ -1534,6 +1556,11 @@ function castAbility(key,tx,ty){
     for(const t of g.towers) t.flash=1;
     g.announce={text:'⚡ OVERDRIVE ⚡',sub:'',life:1.4,max:1.4};
     SFX.play('upgrade');
+  } else if(key==='tribute'){
+    addGold(a.gold);
+    floatText(W/2,90,'+'+a.gold+' gold!','#ffc857',17);
+    ring(W/2,H-60,60,'#ffc857');
+    SFX.play('coin');
   }
 }
 function updateAbilities(dt){
@@ -2348,8 +2375,6 @@ function draw(){
     ctx.beginPath(); ctx.moveTo(mx-12,my); ctx.lineTo(mx+12,my); ctx.moveTo(mx,my-12); ctx.lineTo(mx,my+12); ctx.stroke();
     ctx.globalAlpha=1;
   }
-  // ability bar
-  drawAbilityBar();
 
   // announce
   if(g.announce){
@@ -2411,8 +2436,6 @@ cv.addEventListener('mousedown',ev=>{
   SFX.ensure();
   if(ev.button===2) return;
   const p=canvasPos(ev);
-  const ab=abilityAt(p.x,p.y);
-  if(ab){ tapAbility(ab); return; }
   if(game.aiming){ castAbility(game.aiming,p.x,p.y); return; }
   const c=Math.floor(p.x/TILE),r=Math.floor(p.y/TILE);
   if(game.buildType){
@@ -2446,6 +2469,7 @@ window.addEventListener('keydown',ev=>{
     case 'q': case 'Q': tapAbility('meteor'); break;
     case 'w': case 'W': tapAbility('freeze'); break;
     case 'e': case 'E': tapAbility('overdrive'); break;
+    case 'r': case 'R': tapAbility('tribute'); break;
   }
 });
 window.addEventListener('blur',()=>{ if(game&&game.state==='play'&&!game.paused) togglePause(); });
@@ -2458,8 +2482,6 @@ cv.addEventListener('touchstart',ev=>{
   const tch=ev.changedTouches[0];
   const p=canvasPos(tch);
   game.mouse.x=p.x; game.mouse.y=p.y; game.mouse.inside=true;
-  const ab=abilityAt(p.x,p.y);
-  if(ab){ tapAbility(ab); return; }
   if(game.aiming){ castAbility(game.aiming,p.x,p.y); return; }
   const c=Math.floor(p.x/TILE), r=Math.floor(p.y/TILE);
   if(game.buildType){
@@ -2519,6 +2541,27 @@ function updateShopLocks(){
   for(const el of shopEl.children) el.classList.toggle('locked', isTowerLocked(el.dataset.type));
 }
 updateShopLocks();
+// ----- ability bar (tappable DOM buttons) -----
+const abilityBarEl=$('abilityBar');
+for(const a of ABILITIES){
+  const b=document.createElement('button');
+  b.className='abBtn'; b.dataset.key=a.key; b.title=a.name+' — '+a.desc;
+  b.innerHTML='<span class="abIcon">'+a.icon+'</span><span class="abHot">'+a.name+' ('+a.hotkey+')</span><span class="abCd"></span>';
+  b.addEventListener('click',()=>{ SFX.ensure(); tapAbility(a.key); });
+  abilityBarEl.appendChild(b);
+}
+function updateAbilityBar(){
+  if(!game||game.state!=='play') return;
+  for(const b of abilityBarEl.children){
+    const a=ABILITY_BY[b.dataset.key], cd=game.abilityCd[a.key]||0, ready=cd<=0;
+    b.classList.toggle('cooling',!ready);
+    b.classList.toggle('ready',ready);
+    b.classList.toggle('aiming',game.aiming===a.key);
+    b.style.borderColor=game.aiming===a.key?'#fff':(ready?a.color:'var(--edge)');
+    b.querySelector('.abCd').textContent=ready?'':Math.ceil(cd);
+    b.querySelector('.abIcon').style.opacity=ready?'1':'0.5';
+  }
+}
 function drawIconInto(c2,key){
   // reuse drawTurret on a temp context by swapping global ctx — simpler: small bespoke draw
   const saved=ctx;
@@ -2677,6 +2720,7 @@ function updateHUD(){
   $('vGold').textContent=fmt(g.gold);
   $('vWave').textContent=g.endless?g.wave+' ∞':g.wave+'/'+FINAL_WAVE;
   $('vKills').textContent=g.kills;
+  updateAbilityBar();
   // shop affordability
   for(const el of shopEl.children){
     el.classList.toggle('cant',g.gold<towerCost(el.dataset.type));
