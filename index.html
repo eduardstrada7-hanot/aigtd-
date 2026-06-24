@@ -130,14 +130,19 @@
   .overlay{
     position:fixed; inset:0; background:rgba(6,9,16,.82); backdrop-filter:blur(6px);
     display:flex; align-items:center; justify-content:center; z-index:50;
+    animation:overlayIn .2s ease;
   }
+  @keyframes overlayIn{ from{opacity:0;} to{opacity:1;} }
   .overlay.hidden{display:none;}
   .modal{
     background:linear-gradient(180deg,#1c2538,#121826); border:1px solid var(--edge); border-radius:16px;
     padding:28px 34px; max-width:760px; width:94%; max-height:92vh; overflow-y:auto;
     box-shadow:0 30px 80px rgba(0,0,0,.7);
     text-align:center;
+    animation:modalIn .26s cubic-bezier(.2,.9,.3,1.25);
   }
+  @keyframes modalIn{ from{opacity:0; transform:translateY(12px) scale(.96);} to{opacity:1; transform:none;} }
+  @media (prefers-reduced-motion:reduce){ .overlay,.modal{animation:none;} }
   .modal h2{color:var(--gold); letter-spacing:3px; font-size:30px; text-shadow:0 0 24px rgba(255,200,87,.4); margin-bottom:4px;}
   .modal .tag{color:var(--dim); font-size:13px; margin-bottom:18px;}
   #mapCards{display:flex; gap:12px; justify-content:center; margin-bottom:16px; flex-wrap:wrap;}
@@ -398,6 +403,9 @@
       <b>Keys:</b> <kbd>1</kbd>–<kbd>8</kbd> build · <kbd>Space</kbd> pause · <kbd>F</kbd> speed · <kbd>N</kbd> call wave ·
       <kbd>U</kbd> upgrade · <kbd>X</kbd> sell · <kbd>Esc</kbd> cancel · Click a tower to inspect, set targeting, upgrade.
     </div>
+    <div style="margin-top:14px; font-size:11px; color:var(--dim);">
+      <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--dim);">Privacy Policy</a>
+    </div>
   </div>
 </div>
 
@@ -553,6 +561,7 @@ const dist2=(ax,ay,bx,by)=>{const dx=ax-bx,dy=ay-by;return dx*dx+dy*dy;};
 const rand=(a,b)=>a+Math.random()*(b-a);
 const fmt=n=>n>=10000?(n/1000).toFixed(1)+'k':Math.round(n)+'';
 function mulberry32(seed){return function(){seed|=0;seed=seed+0x6D2B79F5|0;let t=Math.imul(seed^seed>>>15,1|seed);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function haptic(ms){ if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} } }
 //#endregion
 
 //#region ===== Audio (synthesized) =====
@@ -1095,6 +1104,7 @@ function newGame(mapIdx,diffIdx){
     announce:null,
     stats:{},
     abilityCd:Object.fromEntries(ABILITIES.map(a=>[a.key,0])), aiming:null, overdriveT:0,
+    combo:0, comboT:0, comboMax:0, comboFlash:0, hitStop:0,
   };
   renderTerrain();
   updateShopLocks();
@@ -1192,15 +1202,20 @@ function damageEnemy(e,dmg,opts={}){
 }
 function killEnemy(e,src){
   if(e.dead) return;
+  const g=game;
   e.dead=true;
-  game.kills++;
+  g.kills++;
   if(src) src.kills++;
   ACH.addKill(!!e.def.boss);
+  // combo / kill-streak
+  g.combo++; g.comboT=2.0; g.comboFlash=1;
+  if(g.combo>g.comboMax) g.comboMax=g.combo;
+  if(g.combo>0&&g.combo%10===0){ const bonus=Math.min(50,g.combo); addGold(bonus); floatText(e.pos.x,e.pos.y-e.def.r-22,g.combo+'× COMBO +'+bonus,'#ffd34d',15); }
   addGold(e.gold);
   floatText(e.pos.x,e.pos.y-e.def.r-4,'+'+e.gold,'#ffc857',12);
   burst(e.pos.x,e.pos.y,e.def.boss?40:10,e.def.color,e.def.boss?5:2.6);
   SFX.play(e.def.boss?'cannon':'die');
-  if(e.def.boss){ game.shake=Math.max(game.shake,14); ring(e.pos.x,e.pos.y,90,'#ff9f43'); }
+  if(e.def.boss){ g.shake=Math.max(g.shake,14); g.hitStop=Math.max(g.hitStop,0.08); ring(e.pos.x,e.pos.y,90,'#ff9f43'); haptic(40); }
   if(e.def.split){
     for(let i=0;i<e.def.splitN;i++) spawnEnemy(e.def.split,e.d-6+i*12);
   }
@@ -1259,7 +1274,7 @@ function placeTower(type,c,r){
   g.towerAt.set(c+','+r,t);
   recomputeBuffs();
   burst(t.x,t.y,8,def.color,2);
-  SFX.play('place');
+  SFX.play('place'); haptic(9);
   return true;
 }
 function upgradeTower(t){
@@ -1270,7 +1285,7 @@ function upgradeTower(t){
   recomputeBuffs();
   burst(t.x,t.y,14,'#ffc857',3);
   ring(t.x,t.y,40,'#ffc857');
-  SFX.play('upgrade');
+  SFX.play('upgrade'); haptic(12);
   updateInfoPanel();
 }
 function sellRate(){ return Math.min(0.95, 0.7+META.bonus.sellRate); }
@@ -1490,7 +1505,7 @@ function updateEnemy(e,dt){
     g.lives-=cost; g.lostLife=true;
     g.shake=Math.max(g.shake,e.def.boss?16:6);
     floatText(g.path.pts[g.path.pts.length-1].x,g.path.pts[g.path.pts.length-1].y-30,'-'+cost+' ❤','#ff6b6b',16);
-    SFX.play('life');
+    SFX.play('life'); haptic(e.def.boss?[0,30,30,30]:28);
     if(g.lives<=0){ g.lives=0; endGame(false); }
   }
 }
@@ -1535,7 +1550,7 @@ function tapAbility(key){
 function castAbility(key,tx,ty){
   const g=game, a=ABILITY_BY[key];
   if(g.abilityCd[key]>0) return;
-  g.abilityCd[key]=a.cd; g.aiming=null;
+  g.abilityCd[key]=a.cd; g.aiming=null; haptic(15);
   if(key==='meteor'){
     const rr=a.radius*a.radius;
     for(const e of g.enemies){
@@ -1544,7 +1559,7 @@ function castAbility(key,tx,ty){
     }
     for(let i=0;i<34;i++) burst(tx,ty,1,i%2?'#ff8a3c':'#ffd34d',4.5);
     ring(tx,ty,a.radius,'#ff8a3c'); ring(tx,ty,a.radius*0.6,'#ffd34d');
-    g.shake=Math.max(g.shake,12);
+    g.shake=Math.max(g.shake,12); g.hitStop=Math.max(g.hitStop,0.06); haptic(35);
     SFX.play('cannon'); SFX.play('boss');
   } else if(key==='freeze'){
     for(const e of g.enemies){ if(!e.dead) e.stunT=Math.max(e.stunT,a.dur); }
@@ -1599,6 +1614,8 @@ function update(dt){
   const g=game;
   g.t+=dt;
   g.shake=Math.max(0,g.shake-dt*30);
+  g.comboFlash=Math.max(0,g.comboFlash-dt*4);
+  if(g.comboT>0){ g.comboT-=dt; if(g.comboT<=0) g.combo=0; }
   updateAbilities(dt);
   if(g.announce){ g.announce.life-=dt; if(g.announce.life<=0)g.announce=null; }
   // wave countdown
@@ -1696,7 +1713,7 @@ function endGame(win){
   const g=game;
   if(g.state!=='play') return;
   g.state=win?'victory':'gameover';
-  SFX.play(win?'win':'lose');
+  SFX.play(win?'win':'lose'); haptic(win?[0,40,40,40,40,80]:[0,120]);
   const best=+(localStorage.getItem('td_best')||0);
   if(g.wave>best) localStorage.setItem('td_best',g.wave);
   // award research points (delta-only so endless doesn't double-pay)
@@ -2305,10 +2322,12 @@ function draw(){
       ctx.beginPath(); ctx.arc(p.x-2,p.y-2,1.6,0,TAU); ctx.fill();
     }
   }
-  // beams
+  // beams (additive neon glow)
+  ctx.save();
+  ctx.globalCompositeOperation='lighter'; ctx.lineCap='round';
   for(const b of g.beams){
     ctx.globalAlpha=b.life/b.max;
-    ctx.strokeStyle=b.color; ctx.lineWidth=b.w;
+    ctx.strokeStyle=b.color; ctx.lineWidth=b.w; ctx.shadowColor=b.color; ctx.shadowBlur=14;
     ctx.beginPath();
     for(let i=0;i<b.pts.length;i++){
       const pt=b.pts[i];
@@ -2325,15 +2344,17 @@ function draw(){
       } else ctx.lineTo(pt.x,pt.y);
     }
     ctx.stroke();
-    ctx.globalAlpha=1;
   }
-  // rings
+  ctx.restore();
+  // rings (glowing shockwaves)
+  ctx.save();
   for(const r of g.rings){
     ctx.globalAlpha=(r.life/r.max)*0.7;
-    ctx.strokeStyle=r.color; ctx.lineWidth=2.5;
+    ctx.strokeStyle=r.color; ctx.lineWidth=2.5; ctx.shadowColor=r.color; ctx.shadowBlur=12;
     ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,TAU); ctx.stroke();
-    ctx.globalAlpha=1;
   }
+  ctx.restore();
+  ctx.globalAlpha=1;
   // particles
   for(const p of g.particles){
     ctx.globalAlpha=clamp(p.life/p.max,0,1);
@@ -2363,6 +2384,17 @@ function draw(){
     ctx.fillRect(W/2-bw/2,16,bw*clamp(boss.hp/boss.maxHp,0,1),12);
     ctx.font='700 11px Segoe UI'; ctx.textAlign='center'; ctx.fillStyle='#ffd9a8';
     ctx.fillText('⚔ WARLORD ⚔',W/2,26);
+  }
+
+  // kill-streak combo meter
+  if(g.combo>=3){
+    const cf=g.comboFlash, fade=clamp(g.comboT*1.6,0,1);
+    const sz=20+Math.min(g.combo,40)*0.55+cf*7;
+    const col=g.combo>=20?'#ff6b6b':g.combo>=10?'#ffd34d':'#6be4ff';
+    ctx.save(); ctx.globalAlpha=fade; ctx.textAlign='center';
+    ctx.font='800 '+(sz|0)+'px Segoe UI'; ctx.fillStyle=col; ctx.shadowColor=col; ctx.shadowBlur=12+cf*12;
+    ctx.fillText(g.combo+'× COMBO', W/2, boss?52:40);
+    ctx.restore();
   }
 
   // meteor aiming reticle
@@ -3218,9 +3250,13 @@ function frame(now){
   const dt=clamp((now-lastT)/1000,0,0.05);
   lastT=now;
   if(game&&game.state==='play'&&!game.paused){
-    for(let i=0;i<game.speed;i++){
-      update(dt);
-      if(game.state!=='play') break;
+    if(game.hitStop>0){
+      game.hitStop=Math.max(0,game.hitStop-dt);   // freeze the action for a beat (impact "hit-stop")
+    } else {
+      for(let i=0;i<game.speed;i++){
+        update(dt);
+        if(game.state!=='play') break;
+      }
     }
   }
   draw();

@@ -7,7 +7,7 @@ const OUT = 'www';
 rmSync(OUT, { recursive: true, force: true });
 mkdirSync(OUT, { recursive: true });
 
-const files = ['index.html', 'manifest.webmanifest', 'sw.js'];
+const files = ['index.html', 'manifest.webmanifest', 'sw.js', 'privacy.html'];
 for (const f of files) copyFileSync(f, join(OUT, f));
 
 // copy the icons folder
