@@ -63,13 +63,15 @@
   .stat .lbl{color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; display:block; line-height:1;}
   #vLives{color:var(--red);} #vGold{color:var(--gold);} #vWave{color:var(--accent);} #vKills{color:var(--green);}
 
-  /* Ability bar (tappable buttons) */
-  #abilityBar{display:flex; gap:8px; padding:8px;}
-  .abBtn{position:relative; flex:1 1 0; min-width:0; aspect-ratio:1/1; max-height:74px; border-radius:12px; padding:0;
-    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px; overflow:hidden;
-    background:rgba(0,0,0,.3); border:2px solid var(--edge); cursor:pointer; transition:transform .07s, border-color .1s;}
-  .abBtn .abIcon{font-size:23px; line-height:1;}
-  .abBtn .abHot{font-size:9px; color:var(--dim); letter-spacing:1px;}
+  /* Ability bar — floats over the bottom of the map */
+  #abilityBar{position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
+    display:flex; gap:8px; z-index:6; padding:0;}
+  .abBtn{position:relative; flex:0 0 auto; width:54px; height:54px; border-radius:12px; padding:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; overflow:hidden;
+    background:rgba(10,14,22,.74); border:2px solid var(--edge); cursor:pointer;
+    transition:transform .07s, border-color .1s; backdrop-filter:blur(2px); box-shadow:0 4px 14px rgba(0,0,0,.4);}
+  .abBtn .abIcon{font-size:24px; line-height:1;}
+  .abBtn .abHot{font-size:9px; color:var(--dim); letter-spacing:1px; line-height:1;}
   .abBtn .abCd{position:absolute; inset:0; display:none; align-items:center; justify-content:center;
     font-weight:800; font-size:21px; color:#fff; background:rgba(0,0,0,.55);}
   .abBtn.cooling .abCd{display:flex;}
@@ -302,15 +304,14 @@
     #howto{display:none;}
     /* in-game: one column, explicit stacking order */
     #layout{display:flex; flex-direction:column; gap:10px;}
-    #topbar, #canvasWrap, #side{display:contents;}
+    #topbar, #side{display:contents;}
     #topbar .panel, #side .panel{flex:0 0 auto; width:100%;}
     #hud{order:1; grid-template-columns:repeat(2,1fr);}  /* lives / gold / wave / kills */
     #waveBox{order:2;}     /* incoming wave — directly under the HUD */
-    canvas#game{order:3; flex:0 0 auto; width:100%;}     /* map */
-    #abilityBar{order:4;}  /* abilities */
-    #shopPanel{order:5;}   /* towers */
-    #ctrl{order:6;}        /* pause · speed · mute · menu */
-    #info{order:7;}        /* field guide */
+    #canvasWrap{order:3; width:100%; flex:0 0 auto;}     /* map (with the ability bar floating on it) */
+    #shopPanel{order:4;}   /* towers */
+    #ctrl{order:5;}        /* pause · speed · mute · menu */
+    #info{order:6;}        /* field guide */
   }
 </style>
 </head>
@@ -340,9 +341,9 @@
     </div>
     <div id="canvasWrap">
       <canvas id="game" width="960" height="672"></canvas>
+      <div id="abilityBar"></div>
     </div>
     <aside id="side">
-      <div class="panel" id="abilityBar"></div>
       <div class="panel" id="shopPanel"><div id="shop"></div></div>
       <div class="panel" id="info"></div>
       <div class="panel" id="ctrl">
@@ -2622,7 +2623,7 @@ const abilityBarEl=$('abilityBar');
 for(const a of ABILITIES){
   const b=document.createElement('button');
   b.className='abBtn'; b.dataset.key=a.key; b.title=a.name+' — '+a.desc;
-  b.innerHTML='<span class="abIcon">'+a.icon+'</span><span class="abHot">'+a.name+' ('+a.hotkey+')</span><span class="abCd"></span>';
+  b.innerHTML='<span class="abIcon">'+a.icon+'</span><span class="abHot">'+a.hotkey+'</span><span class="abCd"></span>';
   b.addEventListener('click',()=>{ SFX.ensure(); tapAbility(a.key); });
   abilityBarEl.appendChild(b);
 }
