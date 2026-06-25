@@ -41,7 +41,7 @@
   #topbar{grid-area:top; display:flex; gap:12px; align-items:start;}
   #topbar #hud{flex:1.5 1 0;}
   #topbar #waveBox{flex:1 1 0;}
-  #canvasWrap{grid-area:map; position:relative; min-width:0;}
+  #canvasWrap{grid-area:map; position:relative; min-width:0; padding-right:84px;}  /* right gutter holds the ability rail */
   canvas#game{
     width:100%; display:block; border-radius:10px; touch-action:none;
     border:1px solid var(--edge);
@@ -63,8 +63,8 @@
   .stat .lbl{color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; display:block; line-height:1;}
   #vLives{color:var(--red);} #vGold{color:var(--gold);} #vWave{color:var(--accent);} #vKills{color:var(--green);}
 
-  /* Ability bar — floats as a vertical column on the left of the map */
-  #abilityBar{position:absolute; left:10px; top:50%; transform:translateY(-50%);
+  /* Ability bar — a vertical rail in a dedicated gutter on the right of the map */
+  #abilityBar{position:absolute; right:8px; top:50%; transform:translateY(-50%);
     display:flex; flex-direction:column; gap:8px; z-index:6; padding:0;}
   .abBtn{position:relative; flex:0 0 auto; width:54px; height:54px; border-radius:12px; padding:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; overflow:hidden;
@@ -302,17 +302,18 @@
     .rNode{width:46%;}
     /* the long how-to block is replaced by the ❔ Tutorial button on phones */
     #howto{display:none;}
-    /* smaller ability buttons so the vertical column fits the short phone map */
-    #abilityBar{left:6px; gap:6px;}
-    #abilityBar .abBtn{width:44px; height:44px;}
-    #abilityBar .abBtn .abIcon{font-size:20px;}
+    /* phones: full-width map + abilities as a row right under it (no side gutter) */
+    #abilityBar{position:static; transform:none; right:auto; top:auto;
+      flex-direction:row; justify-content:center; gap:8px; margin-top:8px;}
+    #abilityBar .abBtn{width:52px; height:52px;}
+    #abilityBar .abBtn .abIcon{font-size:22px;}
     /* in-game: one column, explicit stacking order */
     #layout{display:flex; flex-direction:column; gap:10px;}
     #topbar, #side{display:contents;}
     #topbar .panel, #side .panel{flex:0 0 auto; width:100%;}
     #hud{order:1; grid-template-columns:repeat(2,1fr);}  /* lives / gold / wave / kills */
     #waveBox{order:2;}     /* incoming wave — directly under the HUD */
-    #canvasWrap{order:3; width:100%; flex:0 0 auto;}     /* map (with the ability bar floating on it) */
+    #canvasWrap{order:3; width:100%; flex:0 0 auto; padding-right:0;}  /* full-width map; abilities sit in a row below */
     #shopPanel{order:4;}   /* towers */
     #ctrl{order:5;}        /* pause · speed · mute · menu */
     #info{order:6;}        /* field guide */
