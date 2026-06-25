@@ -77,6 +77,9 @@
   .abBtn.cooling .abCd{display:flex;}
   .abBtn.ready:hover{transform:translateY(-1px);}
   .abBtn.aiming{box-shadow:0 0 0 2px #fff inset;}
+  /* 📺 hint: a cooling ability can be recharged by watching an ad (tap it) */
+  .abBtn.adable::after{content:'📺'; position:absolute; bottom:0; right:1px; font-size:11px; z-index:2; filter:drop-shadow(0 1px 1px #000);}
+  .abBtn.adable{cursor:pointer;}
 
   /* Shop */
   #shop{display:grid; grid-template-columns:repeat(3,1fr); gap:8px;}
@@ -1582,9 +1585,25 @@ function abilityAt(px,py){
 }
 function tapAbility(key){
   const g=game, a=ABILITY_BY[key];
-  if(!a||g.abilityCd[key]>0){ SFX.play('error'); return; }
+  if(!a) return;
+  if(g.abilityCd[key]>0){
+    // still cooling — offer a rewarded ad to recharge it instantly
+    if(!IAP.removeAds) offerRechargeAd(key); else SFX.play('error');
+    return;
+  }
   if(a.targeted){ g.aiming=(g.aiming===key)?null:key; g.buildType=null; updateShopSel(); }
   else castAbility(key);
+}
+async function offerRechargeAd(key){
+  const a=ABILITY_BY[key];
+  if(!game||game.state!=='play'||game.abilityCd[key]<=0) return;
+  const ok=await uiConfirm('Recharge '+a.name, 'Watch a short ad to instantly recharge '+a.icon+' '+a.name+'?', 'cooldown: '+Math.ceil(game.abilityCd[key])+'s left');
+  if(!ok) return;
+  const rewarded=await ADS.showRewarded('recharge_'+key);
+  if(rewarded && game && game.state==='play'){
+    game.abilityCd[key]=0; haptic(15);
+    floatText(W/2,90,a.icon+' '+a.name+' recharged!',a.color,16); SFX.play('upgrade');
+  }
 }
 function castAbility(key,tx,ty){
   const g=game, a=ABILITY_BY[key];
@@ -2639,6 +2658,7 @@ function updateAbilityBar(){
     b.classList.toggle('cooling',!ready);
     b.classList.toggle('ready',ready);
     b.classList.toggle('aiming',game.aiming===a.key);
+    b.classList.toggle('adable',!ready && !IAP.removeAds);  /* show 📺 hint: tap to watch ad & recharge */
     b.style.borderColor=game.aiming===a.key?'#fff':(ready?a.color:'var(--edge)');
     b.querySelector('.abCd').textContent=ready?'':Math.ceil(cd);
     b.querySelector('.abIcon').style.opacity=ready?'1':'0.5';
