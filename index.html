@@ -304,11 +304,11 @@
     #layout{display:flex; flex-direction:column; gap:10px;}
     #topbar, #canvasWrap, #side{display:contents;}
     #topbar .panel, #side .panel{flex:0 0 auto; width:100%;}
-    canvas#game{order:2; flex:0 0 auto; width:100%;}
     #hud{order:1; grid-template-columns:repeat(2,1fr);}  /* lives / gold / wave / kills */
-    #abilityBar{order:3;}  /* abilities — right under the map */
-    #shopPanel{order:4;}   /* towers */
-    #waveBox{order:5;}     /* incoming wave */
+    #waveBox{order:2;}     /* incoming wave — directly under the HUD */
+    canvas#game{order:3; flex:0 0 auto; width:100%;}     /* map */
+    #abilityBar{order:4;}  /* abilities */
+    #shopPanel{order:5;}   /* towers */
     #ctrl{order:6;}        /* pause · speed · mute · menu */
     #info{order:7;}        /* field guide */
   }
