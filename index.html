@@ -63,9 +63,9 @@
   .stat .lbl{color:var(--dim); font-size:10px; text-transform:uppercase; letter-spacing:1px; display:block; line-height:1;}
   #vLives{color:var(--red);} #vGold{color:var(--gold);} #vWave{color:var(--accent);} #vKills{color:var(--green);}
 
-  /* Ability bar — floats over the bottom of the map */
-  #abilityBar{position:absolute; left:50%; bottom:10px; transform:translateX(-50%);
-    display:flex; gap:8px; z-index:6; padding:0;}
+  /* Ability bar — floats as a vertical column on the left of the map */
+  #abilityBar{position:absolute; left:10px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:8px; z-index:6; padding:0;}
   .abBtn{position:relative; flex:0 0 auto; width:54px; height:54px; border-radius:12px; padding:0;
     display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; overflow:hidden;
     background:rgba(10,14,22,.74); border:2px solid var(--edge); cursor:pointer;
@@ -302,6 +302,10 @@
     .rNode{width:46%;}
     /* the long how-to block is replaced by the ❔ Tutorial button on phones */
     #howto{display:none;}
+    /* smaller ability buttons so the vertical column fits the short phone map */
+    #abilityBar{left:6px; gap:6px;}
+    #abilityBar .abBtn{width:44px; height:44px;}
+    #abilityBar .abBtn .abIcon{font-size:20px;}
     /* in-game: one column, explicit stacking order */
     #layout{display:flex; flex-direction:column; gap:10px;}
     #topbar, #side{display:contents;}
