@@ -1028,12 +1028,23 @@ const SKU_NAMES={remove_ads:'Remove Ads', skin_gold:'Golden Arsenal', skin_neon:
 const IAP_PRICES={remove_ads:'$2.99', skin_gold:'$1.99', skin_neon:'$1.99'};
 
 const ADS={
+  busy:false,   // true while an ad is on-screen — stops the blur handler from auto-pausing the game
   // NATIVE HOOK: set window.BastionNativeAds.showRewarded(placement) => Promise<bool> (AdMob)
   async showRewarded(placement){
-    if(window.BastionNativeAds&&window.BastionNativeAds.showRewarded){
-      try{ return await window.BastionNativeAds.showRewarded(placement); }catch(e){ return false; }
+    this.busy=true;
+    const g=(typeof game==='object')?game:null;
+    const wasPaused=g?g.paused:false;
+    if(g&&g.state==='play') g.paused=true;   // freeze the field while the ad is on-screen
+    try{
+      if(window.BastionNativeAds&&window.BastionNativeAds.showRewarded){
+        try{ return await window.BastionNativeAds.showRewarded(placement); }catch(e){ return false; }
+      }
+      return await demoAd(placement); // web fallback
+    } finally {
+      this.busy=false;
+      // restore the pre-ad pause state so the game resumes after the ad closes
+      if(g){ g.paused=wasPaused; const bp=document.getElementById('btnPause'); if(bp) bp.textContent=g.paused?'▶':'⏸'; }
     }
-    return demoAd(placement); // web fallback
   }
 };
 //#endregion
@@ -2573,7 +2584,7 @@ window.addEventListener('keydown',ev=>{
     case 'r': case 'R': tapAbility('tribute'); break;
   }
 });
-window.addEventListener('blur',()=>{ if(game&&game.state==='play'&&!game.paused) togglePause(); });
+window.addEventListener('blur',()=>{ if(game&&game.state==='play'&&!game.paused&&!ADS.busy) togglePause(); });
 
 // ----- touch controls (mobile) -----
 cv.addEventListener('touchstart',ev=>{
@@ -3397,15 +3408,19 @@ showMenu();
   const AdMob = Cap.Plugins && Cap.Plugins.AdMob;
   if(!AdMob) return;
 
+  const adId = () => ADMOB.test ? ADMOB.testRewarded : ADMOB.rewarded;
+  async function preload(){ try{ await AdMob.prepareRewardVideoAd({ adId:adId(), isTesting:ADMOB.test }); }catch(e){} }
+
   async function showRewarded(placement){
-    const adId = ADMOB.test ? ADMOB.testRewarded : ADMOB.rewarded;
     let earned=false; const handles=[];
     try{
+      // reward can arrive via the event OR the show() return value — capture both
       handles.push(await AdMob.addListener('onRewardedVideoAdReward', ()=>{ earned=true; }));
-      await AdMob.prepareRewardVideoAd({ adId, isTesting: ADMOB.test });
-      await AdMob.showRewardVideoAd();
-    }catch(e){ earned=false; }   // failed to load/show → no reward
-    finally{ for(const h of handles){ try{ await h.remove(); }catch(e){} } }
+      try{ await AdMob.prepareRewardVideoAd({ adId:adId(), isTesting:ADMOB.test }); }catch(e){}
+      const res = await AdMob.showRewardVideoAd();
+      if(res && (res.amount!=null || res.type!=null || res.rewarded===true)) earned=true;
+    }catch(e){ /* failed to load/show → no reward */ }
+    finally{ for(const h of handles){ try{ await h.remove(); }catch(e){} } preload(); /* get the next one ready */ }
     return earned;
   }
 
@@ -3413,6 +3428,7 @@ showMenu();
     try{
       await AdMob.initialize({ initializeForTesting: ADMOB.test, requestTrackingAuthorization: true });
       window.BastionNativeAds = { showRewarded };
+      preload();   // warm up the first rewarded ad so it shows instantly
     }catch(e){ console.warn('[AdMob] init failed', e); }
   })();
 })();
