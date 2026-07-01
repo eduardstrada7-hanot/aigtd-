@@ -3386,8 +3386,8 @@ showMenu();
 (function(){
   const ADMOB = {
     // ⚠️ TEST MODE: keep true while developing (shows Google's test ads, safe to tap).
-    //    Set to false ONLY for the production release you upload to the store.
-    test: true,
+    //    Don't edit by hand — `npm run sync:release` flips this to false in the release build only.
+    test: true, /* ADMOB_TEST_FLAG */
     appId:        'ca-app-pub-7841019476165936~3167681826',          // your AdMob App ID (also goes in AndroidManifest)
     rewarded:     'ca-app-pub-7841019476165936/3607499674',          // your real rewarded ad unit
     testRewarded: 'ca-app-pub-3940256099942544/5224354917',          // Google's official Android test rewarded unit

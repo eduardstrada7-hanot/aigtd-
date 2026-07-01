@@ -32,9 +32,15 @@ tap **Revive** — a **test** rewarded ad should play, then you keep playing. �
 If you edit the game later, just run `npm run sync` and re-run.
 
 ## 2. Go live (when you publish)
-1. In `index.html`, change `ADMOB.test` from `true` to **`false`** (this switches to
-   your real rewarded unit and real ads).
-2. `npm run sync`, rebuild the signed release `.aab`, and upload it.
+1. Build the release bundle with **live ads** using the dedicated command:
+   ```bash
+   npm run sync:release
+   ```
+   This flips the ad flag to LIVE **in the built app only** (the source stays on
+   test ads, so normal `npm run sync` is always safe). Do this right before you
+   build the `.aab` you upload — never for a build you'll tap ads on yourself.
+2. In Android Studio, build the **signed release `.aab`** and upload it.
+   *(To go back to testing afterwards, just run `npm run sync` again.)*
 3. In **Play Console → App content → Data safety**, declare data collection
    (because of AdMob): *Device or other IDs* = collected/shared, plus *App activity*
    and *approximate location* per AdMob's guidance. Mark it used for "Advertising or

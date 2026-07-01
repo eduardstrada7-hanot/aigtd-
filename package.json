@@ -9,6 +9,7 @@
     "build": "node tools/build.mjs",
     "serve": "npx --yes serve www -l 4321",
     "sync": "npm run build && npx cap sync",
+    "sync:release": "npm run build && node tools/set-ads-live.mjs && npx cap sync android",
     "add:ios": "npm run build && npx cap add ios && npx cap sync ios",
     "add:android": "npm run build && npx cap add android && npx cap sync android && node tools/patch-android-admob.mjs",
     "patch:admob": "node tools/patch-android-admob.mjs",
